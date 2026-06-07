@@ -83,6 +83,86 @@ export function getSettings(): Record<string, string> {
   }, {} as Record<string, string>);
 }
 
+export function setSetting(key: string, value: string): void {
+  if (!db) throw new Error('Database not initialized');
+  db.prepare(`INSERT INTO settings (key, value) VALUES (@key, @value) ON CONFLICT(key) DO UPDATE SET value = @value`).run({ key, value });
+}
+
+export function updateItem(id: string, updates: Partial<Item>): void {
+  if (!db) throw new Error('Database not initialized');
+  const current = db.prepare('SELECT * FROM items WHERE id = ?').get(id) as Item;
+  if (!current) throw new Error('Item not found');
+  const merged = { ...current, ...updates, updated_at: new Date().toISOString() };
+
+  // Guardrails
+  if (merged.type === 'resolved' && (!merged.conclusion || merged.conclusion.trim() === '')) {
+    throw new Error('Conclusion required to set item to resolved.');
+  }
+
+  if (merged.type === 'parked' && merged.status === 'resolved') {
+    throw new Error('An item cannot be both parked and resolved.');
+  }
+
+  db.prepare(`
+    UPDATE items SET
+      type = @type, content = @content, updated_at = @updated_at,
+      status = @status, thread_id = @thread_id, conclusion = @conclusion
+    WHERE id = @id
+  `).run(merged);
+}
+
+export function deleteItem(id: string): void {
+  if (!db) throw new Error('Database not initialized');
+  db.prepare('DELETE FROM items WHERE id = ?').run(id);
+}
+
+export interface Doc {
+  id: string;
+  name: string;
+  doc_type: string | null;
+  version: string | null;
+  location: string | null;
+  created_at: string;
+}
+
+export function insertDoc(doc: Partial<Doc>): Doc {
+  if (!db) throw new Error('Database not initialized');
+  const newDoc: Doc = {
+    id: doc.id || crypto.randomUUID(),
+    name: doc.name || 'Untitled',
+    doc_type: doc.doc_type || null,
+    version: doc.version || null,
+    location: doc.location || null,
+    created_at: doc.created_at || new Date().toISOString(),
+  };
+  db.prepare(`
+    INSERT INTO docs (id, name, doc_type, version, location, created_at)
+    VALUES (@id, @name, @doc_type, @version, @location, @created_at)
+  `).run(newDoc);
+  return newDoc;
+}
+
+export function updateDoc(id: string, updates: Partial<Doc>): void {
+  if (!db) throw new Error('Database not initialized');
+  const current = db.prepare('SELECT * FROM docs WHERE id = ?').get(id) as Doc;
+  if (!current) throw new Error('Doc not found');
+  const merged = { ...current, ...updates };
+  db.prepare(`
+    UPDATE docs SET name = @name, doc_type = @doc_type, version = @version, location = @location
+    WHERE id = @id
+  `).run(merged);
+}
+
+export function getDocs(): Doc[] {
+  if (!db) throw new Error('Database not initialized');
+  return db.prepare('SELECT * FROM docs ORDER BY created_at ASC').all() as Doc[];
+}
+
+export function deleteDoc(id: string): void {
+  if (!db) throw new Error('Database not initialized');
+  db.prepare('DELETE FROM docs WHERE id = ?').run(id);
+}
+
 export function updateThreadState(state: 'active' | 'parked' | 'resolved'): void {
   if (!db) throw new Error('Database not initialized');
   // Since we only have a basic implementation and single-thread context for now,

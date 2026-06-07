@@ -38,6 +38,13 @@ app.whenReady().then(() => {
   ipcMain.handle('db:getDevTracks', () => api.getDevTracks());
   ipcMain.handle('db:getLastDevTrack', () => api.getLastDevTrack());
   ipcMain.handle('db:getSettings', () => api.getSettings());
+  ipcMain.handle('db:setSetting', (_, key, value) => api.setSetting(key, value));
+  ipcMain.handle('db:updateItem', (_, id, updates) => api.updateItem(id, updates));
+  ipcMain.handle('db:deleteItem', (_, id) => api.deleteItem(id));
+  ipcMain.handle('db:insertDoc', (_, doc) => api.insertDoc(doc));
+  ipcMain.handle('db:updateDoc', (_, id, updates) => api.updateDoc(id, updates));
+  ipcMain.handle('db:getDocs', () => api.getDocs());
+  ipcMain.handle('db:deleteDoc', (_, id) => api.deleteDoc(id));
   ipcMain.handle('db:updateThreadState', (_, state) => api.updateThreadState(state));
   ipcMain.handle('db:activateItemByText', (_, text) => api.activateItemByText(text));
 
