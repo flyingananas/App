@@ -2,6 +2,8 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
 import { initDb, pingDb } from './db';
 import * as api from './api';
+import * as secureStorage from './secureStorage';
+import * as aiAdapter from './aiAdapter';
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -47,6 +49,10 @@ app.whenReady().then(() => {
   ipcMain.handle('db:deleteDoc', (_, id) => api.deleteDoc(id));
   ipcMain.handle('db:updateThreadState', (_, state) => api.updateThreadState(state));
   ipcMain.handle('db:activateItemByText', (_, text) => api.activateItemByText(text));
+
+  ipcMain.handle('ai:setKey', (_, provider, key) => secureStorage.setAIKey(provider, key));
+  ipcMain.handle('ai:hasKey', (_, provider) => secureStorage.hasAIKey(provider));
+  ipcMain.handle('ai:generate', (_, prompt, options) => aiAdapter.generateContent(prompt, options));
 
   createWindow();
 

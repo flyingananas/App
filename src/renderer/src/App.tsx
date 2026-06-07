@@ -12,6 +12,8 @@ import { HistoryArchive } from './components/HistoryArchive';
 import { AppendixA } from './components/AppendixA';
 import { AppendixB } from './components/AppendixB';
 import { AppendixC } from './components/AppendixC';
+import { Settings } from './components/Settings';
+import { OngoingSweep } from './components/OngoingSweep';
 
 function App() {
   const [activeTab, setActiveTab] = useState<any>('outline');
@@ -81,13 +83,37 @@ function App() {
       }
       return next;
     });
+
+    const total = items.length + 1;
+    const sycThreshold = parseInt(settings.syc_threshold || '200', 10);
+    if (total > 0 && total % sycThreshold === 0) {
+      setChatMessages((prev) => [...prev, { id: Date.now(), type: 'system', content: `This is your ${sycThreshold}-entry system check. Is now a good time? You can also adjust the threshold — keep at ${sycThreshold}, increase, or decrease.
+1. What is working as designed?
+2. What is being used differently — better or worse?
+3. What keeps being worked around?
+4. What rule has drifted or is applied inconsistently?` }]);
+    }
   };
 
   const handleCheckpointConfirm = async () => {
+    let content = 'Checkpoint generated: Threads not resolved/parked. Assumptions unexamined. Context scan. Items logged summary. Untouched docs.';
+
+    if (settings.ai_enabled === 'true' && settings.feat_checkpoint === 'true') {
+      try {
+        const provider = (settings.ai_provider as 'gemini' | 'claude') || 'gemini';
+        const model = settings[`${provider}_heavy`] || 'gemini-2.5-pro';
+        const prompt = `You are a project manager. Write a concise prose checkpoint summary (a paragraph) based on the recent project activity. Address: unresolved threads, unexamined assumptions, current context, recent items logged, and untouched docs.
+Recent items: ${JSON.stringify(items.slice(-15).map(i => i.content))}`;
+        content = await window.api.generateAI(prompt, { provider, model });
+      } catch (err: any) {
+        setChatMessages(prev => [...prev, { id: Date.now(), type: 'system', content: `[integrity flag] Checkpoint AI failed (${err.message}). Falling back to manual.` }]);
+      }
+    }
+
     // Generate checkpoint record
     await window.api.insertItem({
       type: 'condensed',
-      content: 'Checkpoint generated: Threads not resolved/parked. Assumptions unexamined. Context scan. Items logged summary. Untouched docs.',
+      content,
       source: 'manual'
     });
     setNewItemsCount(0);
@@ -106,6 +132,22 @@ function App() {
       setFocusedItemId(id);
     }
     setActiveTab('outline');
+  };
+
+  const runContextAutoDetection = async (itemContent: string) => {
+    if (settings.ai_enabled === 'true' && settings.feat_context === 'true') {
+      try {
+        const provider = (settings.ai_provider as 'gemini' | 'claude') || 'gemini';
+        const model = settings[`${provider}_light`] || 'gemini-2.5-flash';
+        const prompt = `Analyze this message: "${itemContent}". Extract any named people, events, anecdotes, or biographical details that should be logged as context. Return ONLY a single string of the extracted context, or exactly "NONE" if nothing qualifies.`;
+        const result = await window.api.generateAI(prompt, { provider, model });
+        if (result && result.trim() !== 'NONE') {
+          setChatMessages(prev => [...prev, { id: Date.now(), type: 'system', content: `[AI Suggestion] Propose logging [context]: ${result.trim()}` }]);
+        }
+      } catch (err: any) {
+        console.error('Context detection failed:', err);
+      }
+    }
   };
 
   const handleInputSubmit = async (e: React.FormEvent) => {
@@ -144,6 +186,7 @@ function App() {
       setItems((prev) => [...prev, newItem]);
       incrementItemCount();
       setChatMessages((prev) => [...prev, { id: Date.now(), type: 'system', content: parsed.response }]);
+      runContextAutoDetection(parsed.content);
     } else if (parsed.type === 'mark_this') {
       const newItem = await window.api.insertItem({
         type: parsed.explicitType || 'thought',
@@ -152,6 +195,7 @@ function App() {
       });
       setItems((prev) => [...prev, newItem]);
       incrementItemCount();
+      runContextAutoDetection(parsed.content);
     } else if (parsed.type === 'help') {
       const newItem = await window.api.insertItem({
         type: 'question',
@@ -200,11 +244,36 @@ function App() {
     } else if (parsed.type === 'query_all_codes') {
       setActiveTab('appendix_b');
       setChatMessages((prev) => [...prev, { id: Date.now(), type: 'system', content: `Opened full inline glossary (Appendix B).` }]);
+    } else if (parsed.type === 'watch_threads') {
+      await window.api.setSetting('feat_inferred', 'true');
+      setSettings(prev => ({...prev, feat_inferred: 'true'}));
+      setChatMessages((prev) => [...prev, { id: Date.now(), type: 'system', content: `Thread watch activated (Inferred logging ON).` }]);
+    } else if (parsed.type === 'relax_watch') {
+      await window.api.setSetting('feat_inferred', 'false');
+      setSettings(prev => ({...prev, feat_inferred: 'false'}));
+      setChatMessages((prev) => [...prev, { id: Date.now(), type: 'system', content: `Thread watch relaxed (Inferred logging OFF).` }]);
     } else if (parsed.type === 'system_check') {
-      setChatMessages((prev) => [...prev, { id: Date.now(), type: 'system', content: `System Check Initiated.` }]);
+      setChatMessages((prev) => [...prev, { id: Date.now(), type: 'system', content: `System Check Initiated.
+1. What is working as designed?
+2. What is being used differently — better or worse?
+3. What keeps being worked around?
+4. What rule has drifted or is applied inconsistently?` }]);
     } else if (parsed.type === 'chat') {
-      // Ordinary chat message
-      setChatMessages((prev) => [...prev, { id: Date.now(), type: 'chat', content: parsed.content }]);
+      // Inferred logging
+      if (settings.ai_enabled === 'true' && settings.feat_inferred === 'true') {
+        const newItem = await window.api.insertItem({
+          type: 'thought',
+          content: parsed.content,
+          source: 'inferred',
+        });
+        setItems((prev) => [...prev, newItem]);
+        incrementItemCount();
+        setChatMessages((prev) => [...prev, { id: Date.now(), type: 'system', content: 'noted (inferred)' }]);
+        runContextAutoDetection(parsed.content);
+      } else {
+        // Ordinary chat message
+        setChatMessages((prev) => [...prev, { id: Date.now(), type: 'chat', content: parsed.content }]);
+      }
     }
 
     setInputValue('');
@@ -253,6 +322,8 @@ function App() {
         {activeTab === 'appendix_a' && <AppendixA items={items} onNavigateToOutline={handleNavigateToOutline} />}
         {activeTab === 'appendix_b' && <AppendixB />}
         {activeTab === 'appendix_c' && <AppendixC />}
+        {activeTab === 'ongoing_sweep' && <OngoingSweep settings={settings} onExtract={loadItems} />}
+        {activeTab === 'settings' && <Settings settings={settings} reloadSettings={async () => { const s = await window.api.getSettings(); setSettings(s); }} />}
         {activeTab === 'outline' && (
           <div className="p-4 flex flex-col space-y-8 h-full">
             <div className="flex-1 overflow-y-auto space-y-6">

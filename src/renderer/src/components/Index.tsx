@@ -15,6 +15,8 @@ export function Index({ setActiveTab }: Props) {
     { id: 'appendix_a', label: 'Appendix A (Cross-Reference)' },
     { id: 'appendix_b', label: 'Appendix B (Glossary)' },
     { id: 'appendix_c', label: 'Appendix C (Version History)' },
+    { id: 'ongoing_sweep', label: 'ONGOING Sweep' },
+    { id: 'settings', label: 'Settings' },
   ];
 
   return (
