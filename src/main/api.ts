@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
 import { db } from './db';
 
 export interface Item {
@@ -25,7 +25,7 @@ export function insertItem(item: Partial<Item>): Item {
   if (!db) throw new Error('Database not initialized');
   const now = new Date().toISOString();
   const newItem: Item = {
-    id: item.id || uuidv4(),
+    id: item.id || crypto.randomUUID(),
     type: item.type || 'thought',
     content: item.content || '',
     created_at: item.created_at || now,
@@ -52,7 +52,7 @@ export function getItems(): Item[] {
 export function insertDevTrack(track: Omit<DevTrack, 'id'>): DevTrack {
   if (!db) throw new Error('Database not initialized');
   const newTrack: DevTrack = {
-    id: uuidv4(),
+    id: crypto.randomUUID(),
     ...track,
   };
 

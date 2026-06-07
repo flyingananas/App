@@ -2,7 +2,7 @@
   "name": "app",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "out/main/index.js",
   "directories": {
     "doc": "docs"
   },
@@ -26,8 +26,7 @@
   "dependencies": {
     "better-sqlite3": "11.5.0",
     "react": "19.2.7",
-    "react-dom": "19.2.7",
-    "uuid": "^14.0.0"
+    "react-dom": "19.2.7"
   },
   "devDependencies": {
     "@electron/rebuild": "4.0.4",
@@ -35,7 +34,6 @@
     "@types/node": "25.9.2",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
-    "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "4.7.0",
     "autoprefixer": "10.5.0",
     "electron": "33.2.1",
