@@ -1,12 +1,32 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { parseInput } from './lib/parser';
 import { LghFlow, LghState } from './lib/lghFlow';
+import { Onboarding } from './components/Onboarding';
+import { Navigation } from './components/Navigation';
+import { Cover } from './components/Cover';
+import { Index } from './components/Index';
+import { DevTrack } from './components/DevTrack';
+import { ContextRegister } from './components/ContextRegister';
+import { DocRegister } from './components/DocRegister';
+import { HistoryArchive } from './components/HistoryArchive';
+import { AppendixA } from './components/AppendixA';
+import { AppendixB } from './components/AppendixB';
+import { AppendixC } from './components/AppendixC';
 
 function App() {
+  const [activeTab, setActiveTab] = useState<any>('outline');
+  const [focusedItemId, setFocusedItemId] = useState<string | null>(null);
   const [dbStatus, setDbStatus] = useState<string>('checking...');
+  const [settings, setSettings] = useState<Record<string, string>>({});
+  const [onboardingComplete, setOnboardingComplete] = useState(true);
+
   const [items, setItems] = useState<any[]>([]);
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [inputValue, setInputValue] = useState('');
+
+  // Checkpoint counter state
+  const [newItemsCount, setNewItemsCount] = useState(0);
+  const [showCheckpointPrompt, setShowCheckpointPrompt] = useState(false);
 
   // lgh flow state
   const [lghFlow] = useState(() => new LghFlow());
@@ -21,6 +41,12 @@ function App() {
         const isConnected = await window.api.pingDb();
         setDbStatus(isConnected ? 'connected' : 'not connected');
         if (isConnected) {
+          const loadedSettings = await window.api.getSettings();
+          setSettings(loadedSettings);
+          if (!loadedSettings.project_name) {
+            setOnboardingComplete(false);
+          }
+
           const loadedItems = await window.api.getItems();
           setItems(loadedItems);
         }
@@ -35,6 +61,52 @@ function App() {
   useEffect(() => {
     endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [items, lghPrompt]);
+
+  useEffect(() => {
+    if (activeTab === 'outline' && focusedItemId) {
+      const el = document.getElementById(`item-${focusedItemId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => setFocusedItemId(null), 2000);
+      }
+    }
+  }, [activeTab, focusedItemId]);
+
+  const incrementItemCount = () => {
+    setNewItemsCount((prev) => {
+      const next = prev + 1;
+      const threshold = parseInt(settings.checkpoint_threshold || '15', 10);
+      if (next >= threshold) {
+        setShowCheckpointPrompt(true);
+      }
+      return next;
+    });
+  };
+
+  const handleCheckpointConfirm = async () => {
+    // Generate checkpoint record
+    await window.api.insertItem({
+      type: 'condensed',
+      content: 'Checkpoint generated: Threads not resolved/parked. Assumptions unexamined. Context scan. Items logged summary. Untouched docs.',
+      source: 'manual'
+    });
+    setNewItemsCount(0);
+    setShowCheckpointPrompt(false);
+    const loadedItems = await window.api.getItems();
+    setItems(loadedItems);
+  };
+
+  const loadItems = async () => {
+    const loadedItems = await window.api.getItems();
+    setItems(loadedItems);
+  };
+
+  const handleNavigateToOutline = (id?: string) => {
+    if (id) {
+      setFocusedItemId(id);
+    }
+    setActiveTab('outline');
+  };
 
   const handleInputSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,6 +142,7 @@ function App() {
         source: 'manual',
       });
       setItems((prev) => [...prev, newItem]);
+      incrementItemCount();
       setChatMessages((prev) => [...prev, { id: Date.now(), type: 'system', content: parsed.response }]);
     } else if (parsed.type === 'mark_this') {
       const newItem = await window.api.insertItem({
@@ -78,6 +151,7 @@ function App() {
         source: 'manual',
       });
       setItems((prev) => [...prev, newItem]);
+      incrementItemCount();
     } else if (parsed.type === 'help') {
       const newItem = await window.api.insertItem({
         type: 'question',
@@ -85,6 +159,7 @@ function App() {
         source: 'manual',
       });
       setItems((prev) => [...prev, newItem]);
+      incrementItemCount();
       setChatMessages((prev) => [...prev, { id: Date.now(), type: 'system', content: 'Help requested: Here is a help area.' }]);
     } else if (parsed.type === 'action') {
       const ok = await window.api.activateItemByText(parsed.content);
@@ -102,6 +177,31 @@ function App() {
     } else if (parsed.type === 'return_parked') {
       await window.api.updateThreadState('active');
       setChatMessages((prev) => [...prev, { id: Date.now(), type: 'system', content: 'Returned to parked thread.' }]);
+    } else if (parsed.type === 'query_code') {
+      const codes = [
+        { code: 'drp', full: 'drop:', desc: 'Log silently. Reply "noted". Auto-timestamp.' },
+        { code: 'hlp', full: 'assist:', desc: 'Log AND help immediately.' },
+        { code: 'ida', full: 'idea:', desc: 'Log as an idea worth developing.' },
+        { code: 'act', full: 'action:', desc: 'Activate a specific logged item by matching.' },
+        { code: 'lgh', full: 'log hours', desc: 'Four-question work-block log.' },
+        { code: 'mth', full: 'mark this', desc: 'Add current point to outline immediately.' },
+        { code: 'mta', full: 'mark this as [x]', desc: 'Add with explicit item type.' },
+        { code: 'pth', full: 'park this', desc: 'Manually park the current thread.' },
+        { code: 'rtp', full: 'return to parked', desc: 'Resume a parked thread.' },
+        { code: 'wmc', full: 'watch my threads closely today', desc: 'Activate thread watch + inferred logging.' },
+        { code: 'rtw', full: 'relax thread watch', desc: 'Return to silent mode.' },
+        { code: 'syc', full: 'system check', desc: 'Self-assessment.' },
+      ];
+      const found = codes.find(c => c.code === parsed.code || c.full.startsWith(parsed.code));
+      const msg = found
+        ? `${found.full} - ${found.desc} (type ?codes or ??? for the full list.)`
+        : `Unknown code: ${parsed.code} (type ?codes or ??? for the full list.)`;
+      setChatMessages((prev) => [...prev, { id: Date.now(), type: 'system', content: msg }]);
+    } else if (parsed.type === 'query_all_codes') {
+      setActiveTab('appendix_b');
+      setChatMessages((prev) => [...prev, { id: Date.now(), type: 'system', content: `Opened full inline glossary (Appendix B).` }]);
+    } else if (parsed.type === 'system_check') {
+      setChatMessages((prev) => [...prev, { id: Date.now(), type: 'system', content: `System Check Initiated.` }]);
     } else if (parsed.type === 'chat') {
       // Ordinary chat message
       setChatMessages((prev) => [...prev, { id: Date.now(), type: 'chat', content: parsed.content }]);
@@ -116,6 +216,16 @@ function App() {
     return acc;
   }, {} as Record<string, any[]>);
 
+  const handleOnboardingComplete = async () => {
+    const loadedSettings = await window.api.getSettings();
+    setSettings(loadedSettings);
+    setOnboardingComplete(true);
+  };
+
+  if (!onboardingComplete) {
+    return <Onboarding onComplete={handleOnboardingComplete} />;
+  }
+
   return (
     <div className="flex flex-col h-screen bg-gray-100 text-gray-800 font-sans">
       <header className="p-4 bg-white shadow flex justify-between items-center">
@@ -125,31 +235,62 @@ function App() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-4 flex flex-col space-y-8">
-        <div className="flex-1 overflow-y-auto space-y-6">
-          <h2 className="text-xl font-bold border-b pb-2">Logged Items (Grouped)</h2>
-          {Object.keys(groupedItems).map((type) => (
-            <div key={type} className="space-y-2">
-              <h3 className="text-sm font-bold uppercase text-gray-500">{type}</h3>
-              {groupedItems[type].map((item) => (
-                <div key={item.id} className="p-3 bg-white rounded shadow-sm border border-gray-200">
-                  <div className="text-sm">{item.content}</div>
+      <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
+
+      <main className="flex-1 overflow-y-auto">
+        {activeTab === 'cover' && <Cover settings={settings} />}
+        {activeTab === 'index' && <Index setActiveTab={setActiveTab} />}
+        {activeTab === 'dev_track' && <DevTrack />}
+        {activeTab === 'context_register' && (
+          <ContextRegister
+            items={items}
+            refreshItems={loadItems}
+            statusLabels={settings.status_labels ? JSON.parse(settings.status_labels) : []}
+          />
+        )}
+        {activeTab === 'doc_register' && <DocRegister />}
+        {activeTab === 'history' && <HistoryArchive />}
+        {activeTab === 'appendix_a' && <AppendixA items={items} onNavigateToOutline={handleNavigateToOutline} />}
+        {activeTab === 'appendix_b' && <AppendixB />}
+        {activeTab === 'appendix_c' && <AppendixC />}
+        {activeTab === 'outline' && (
+          <div className="p-4 flex flex-col space-y-8 h-full">
+            <div className="flex-1 overflow-y-auto space-y-6">
+              <h2 className="text-xl font-bold border-b pb-2">Logged Items (Grouped)</h2>
+              {Object.keys(groupedItems).map((type) => (
+                <div key={type} className="space-y-2">
+                  <h3 className="text-sm font-bold uppercase text-gray-500">{type}</h3>
+                  {groupedItems[type].map((item) => (
+                    <div key={item.id} id={`item-${item.id}`} className={`p-3 rounded shadow-sm border ${focusedItemId === item.id ? 'bg-yellow-50 border-yellow-400' : 'bg-white border-gray-200'} transition-colors duration-500`}>
+                      <div className="text-sm">{item.content}</div>
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>
-          ))}
-        </div>
 
-        <div className="border-t pt-4 space-y-2">
-          <h2 className="text-lg font-bold">Chat</h2>
-          {chatMessages.map((msg) => (
-            <div key={msg.id} className={`p-2 rounded text-sm ${msg.type === 'system' ? 'bg-blue-100 text-blue-800' : 'bg-gray-200 text-gray-800'}`}>
-              {msg.content}
+            <div className="border-t pt-4 space-y-2">
+              <h2 className="text-lg font-bold">Chat</h2>
+              {chatMessages.map((msg) => (
+                <div key={msg.id} className={`p-2 rounded text-sm ${msg.type === 'system' ? 'bg-blue-100 text-blue-800' : 'bg-gray-200 text-gray-800'}`}>
+                  {msg.content}
+                </div>
+              ))}
+              <div ref={endOfMessagesRef} />
             </div>
-          ))}
-          <div ref={endOfMessagesRef} />
-        </div>
+          </div>
+        )}
       </main>
+
+      {showCheckpointPrompt && (
+        <div className="p-4 bg-yellow-100 border-t border-b border-yellow-300 flex justify-between items-center">
+          <span className="text-yellow-800 font-medium">15+ items logged. Ready for a checkpoint?</span>
+          <div className="space-x-2">
+            <button onClick={() => setShowCheckpointPrompt(false)} className="px-3 py-1 bg-yellow-200 text-yellow-800 rounded hover:bg-yellow-300">Skip</button>
+            <button onClick={handleCheckpointConfirm} className="px-3 py-1 bg-yellow-600 text-white rounded hover:bg-yellow-700">Confirm Checkpoint</button>
+          </div>
+        </div>
+      )}
 
       <footer className="p-4 bg-white shadow-inner flex flex-col space-y-2">
         {lghState !== 'IDLE' && (
