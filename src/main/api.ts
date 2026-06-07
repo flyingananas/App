@@ -163,6 +163,76 @@ export function deleteDoc(id: string): void {
   db.prepare('DELETE FROM docs WHERE id = ?').run(id);
 }
 
+export function exportData(): string {
+  if (!db) throw new Error('Database not initialized');
+  const data = {
+    settings: db.prepare('SELECT * FROM settings').all(),
+    threads: db.prepare('SELECT * FROM threads').all(),
+    items: db.prepare('SELECT * FROM items').all(),
+    docs: db.prepare('SELECT * FROM docs').all(),
+    dev_track: db.prepare('SELECT * FROM dev_track').all(),
+  };
+  return JSON.stringify(data, null, 2);
+}
+
+export function importData(jsonData: string): void {
+  if (!db) throw new Error('Database not initialized');
+  const data = JSON.parse(jsonData);
+
+  const tx = db.transaction(() => {
+    db!.prepare('DELETE FROM settings').run();
+    db!.prepare('DELETE FROM items').run();
+    db!.prepare('DELETE FROM threads').run();
+    db!.prepare('DELETE FROM docs').run();
+    db!.prepare('DELETE FROM dev_track').run();
+
+    if (data.settings) {
+      const stmt = db!.prepare('INSERT INTO settings (key, value) VALUES (@key, @value)');
+      for (const row of data.settings) stmt.run(row);
+    }
+    if (data.threads) {
+      const stmt = db!.prepare('INSERT INTO threads (id, title, state, created_at) VALUES (@id, @title, @state, @created_at)');
+      for (const row of data.threads) stmt.run(row);
+    }
+    if (data.items) {
+      const stmt = db!.prepare(`
+        INSERT INTO items (id, type, content, created_at, updated_at, status, thread_id, source, conclusion)
+        VALUES (@id, @type, @content, @created_at, @updated_at, @status, @thread_id, @source, @conclusion)
+      `);
+      for (const row of data.items) stmt.run(row);
+    }
+    if (data.docs) {
+      const stmt = db!.prepare(`
+        INSERT INTO docs (id, name, doc_type, version, location, created_at)
+        VALUES (@id, @name, @doc_type, @version, @location, @created_at)
+      `);
+      for (const row of data.docs) stmt.run(row);
+    }
+    if (data.dev_track) {
+      const stmt = db!.prepare(`
+        INSERT INTO dev_track (id, work_date, items_worked, duration, notes)
+        VALUES (@id, @work_date, @items_worked, @duration, @notes)
+      `);
+      for (const row of data.dev_track) stmt.run(row);
+    }
+  });
+
+  tx();
+}
+
+export function exportMarkdown(): string {
+  if (!db) throw new Error('Database not initialized');
+  const settings = getSettings();
+  const items = getItems();
+
+  let md = `# ${settings.project_name || 'Prompt D Project'}\n\n`;
+  md += `## Outline\n\n`;
+  for (const item of items) {
+    md += `- **[${item.type}]** ${item.content}\n`;
+  }
+  return md;
+}
+
 export function updateThreadState(state: 'active' | 'parked' | 'resolved'): void {
   if (!db) throw new Error('Database not initialized');
   // Since we only have a basic implementation and single-thread context for now,

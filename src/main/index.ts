@@ -54,6 +54,10 @@ app.whenReady().then(() => {
   ipcMain.handle('ai:hasKey', (_, provider) => secureStorage.hasAIKey(provider));
   ipcMain.handle('ai:generate', (_, prompt, options) => aiAdapter.generateContent(prompt, options));
 
+  ipcMain.handle('db:exportData', () => api.exportData());
+  ipcMain.handle('db:importData', (_, jsonData) => api.importData(jsonData));
+  ipcMain.handle('db:exportMarkdown', () => api.exportMarkdown());
+
   createWindow();
 
   app.on('activate', () => {

@@ -13,6 +13,7 @@ export function Onboarding({ onComplete }: Props) {
     if (step === 1) {
       if (!projectName.trim()) return;
       await window.api.setSetting('project_name', projectName.trim());
+      await window.api.setSetting('mode', 'NEW');
       setStep(2);
     } else if (step === 2) {
       let labels = [];

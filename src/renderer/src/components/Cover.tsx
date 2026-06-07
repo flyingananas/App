@@ -8,12 +8,23 @@ export function Cover({ settings }: Props) {
   return (
     <div className="p-6 h-full flex flex-col justify-center items-center">
       <h1 className="text-4xl font-bold mb-4">{settings.project_name || 'Prompt D Project'}</h1>
-      <p className="text-gray-500">A Project Companion</p>
-      <div className="mt-8 grid grid-cols-2 gap-4 text-sm">
-        <div className="font-bold text-right">Checkpoint Threshold:</div>
-        <div>{settings.checkpoint_threshold || '15'}</div>
-        <div className="font-bold text-right">System Check Threshold:</div>
-        <div>{settings.syc_threshold || '200'}</div>
+      <p className="text-gray-500 mb-8">A Project Companion</p>
+
+      <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm bg-white p-6 rounded shadow border w-full max-w-md">
+        <div className="font-bold text-right text-gray-600">Date:</div>
+        <div className="font-medium">{new Date().toLocaleDateString()}</div>
+
+        <div className="font-bold text-right text-gray-600">Mode:</div>
+        <div className="font-medium uppercase">{settings.mode || 'NEW'}</div>
+
+        <div className="font-bold text-right text-gray-600">Version:</div>
+        <div className="font-medium">v3</div>
+
+        <div className="font-bold text-right text-gray-600 mt-4">Checkpoint Threshold:</div>
+        <div className="mt-4 font-medium">{settings.checkpoint_threshold || '15'}</div>
+
+        <div className="font-bold text-right text-gray-600">System Check Threshold:</div>
+        <div className="font-medium">{settings.syc_threshold || '200'}</div>
       </div>
     </div>
   );
