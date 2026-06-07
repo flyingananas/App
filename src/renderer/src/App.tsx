@@ -36,6 +36,7 @@ function App() {
   const [lghPrompt, setLghPrompt] = useState<string>('');
 
   const endOfMessagesRef = useRef<HTMLDivElement>(null);
+  const commandInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     async function init() {
@@ -63,6 +64,22 @@ function App() {
   useEffect(() => {
     endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [items, lghPrompt]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd+K (Mac) or Ctrl+K (Windows/Linux)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        commandInputRef.current?.focus();
+      }
+      // Escape to blur
+      if (e.key === 'Escape') {
+        commandInputRef.current?.blur();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'outline' && focusedItemId) {
@@ -374,9 +391,10 @@ Recent items: ${JSON.stringify(items.slice(-15).map(i => i.content))}`;
         )}
         <form onSubmit={handleInputSubmit} className="flex space-x-2">
           <input
+            ref={commandInputRef}
             type="text"
             className="flex-1 border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Type a message or command (e.g., 'drp: thought', 'lgh')..."
+            placeholder="Type a message or command (e.g., 'drp: thought', 'lgh')... (Cmd/Ctrl + K to focus)"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             autoFocus

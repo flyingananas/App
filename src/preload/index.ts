@@ -20,6 +20,9 @@ const api = {
   setAIKey: (provider: string, key: string): Promise<void> => ipcRenderer.invoke('ai:setKey', provider, key),
   hasAIKey: (provider: string): Promise<boolean> => ipcRenderer.invoke('ai:hasKey', provider),
   generateAI: (prompt: string, options: any): Promise<string> => ipcRenderer.invoke('ai:generate', prompt, options),
+  exportData: (): Promise<string> => ipcRenderer.invoke('db:exportData'),
+  importData: (jsonData: string): Promise<void> => ipcRenderer.invoke('db:importData', jsonData),
+  exportMarkdown: (): Promise<string> => ipcRenderer.invoke('db:exportMarkdown'),
 };
 
 contextBridge.exposeInMainWorld('api', api);

@@ -146,6 +146,65 @@ export function Settings({ settings, reloadSettings }: Props) {
       <button onClick={handleSaveSettings} className="bg-blue-600 text-white font-bold py-2 px-6 rounded hover:bg-blue-700">
         Save Settings
       </button>
+
+      <div className="bg-white p-4 rounded shadow-sm border mt-8">
+        <h3 className="font-bold text-gray-700 mb-4 border-b pb-2">Data Management</h3>
+        <div className="flex space-x-4">
+          <button
+            onClick={async () => {
+              const data = await window.api.exportData();
+              const blob = new Blob([data], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'promptd-backup.json';
+              a.click();
+            }}
+            className="bg-gray-200 text-gray-800 py-2 px-4 rounded hover:bg-gray-300"
+          >
+            Export JSON
+          </button>
+
+          <label className="bg-gray-200 text-gray-800 py-2 px-4 rounded hover:bg-gray-300 cursor-pointer">
+            Import JSON
+            <input
+              type="file"
+              accept=".json"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  if (confirm('[integrity flag] Importing JSON will overwrite all current data. Proceed?')) {
+                    const text = await file.text();
+                    try {
+                      await window.api.importData(text);
+                      setStatusMsg('Data imported successfully. Reloading...');
+                      setTimeout(() => window.location.reload(), 1500);
+                    } catch (err: any) {
+                      setStatusMsg(`Import failed: ${err.message}`);
+                    }
+                  }
+                }
+              }}
+            />
+          </label>
+
+          <button
+            onClick={async () => {
+              const md = await window.api.exportMarkdown();
+              const blob = new Blob([md], { type: 'text/markdown' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'promptd-export.md';
+              a.click();
+            }}
+            className="bg-gray-200 text-gray-800 py-2 px-4 rounded hover:bg-gray-300"
+          >
+            Export Markdown
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
