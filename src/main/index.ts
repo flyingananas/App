@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
 import { initDb, pingDb } from './db';
+import * as api from './api';
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -30,6 +31,15 @@ app.whenReady().then(() => {
   ipcMain.handle('db:ping', () => {
     return pingDb();
   });
+
+  ipcMain.handle('db:insertItem', (_, item) => api.insertItem(item));
+  ipcMain.handle('db:getItems', () => api.getItems());
+  ipcMain.handle('db:insertDevTrack', (_, track) => api.insertDevTrack(track));
+  ipcMain.handle('db:getDevTracks', () => api.getDevTracks());
+  ipcMain.handle('db:getLastDevTrack', () => api.getLastDevTrack());
+  ipcMain.handle('db:getSettings', () => api.getSettings());
+  ipcMain.handle('db:updateThreadState', (_, state) => api.updateThreadState(state));
+  ipcMain.handle('db:activateItemByText', (_, text) => api.activateItemByText(text));
 
   createWindow();
 
