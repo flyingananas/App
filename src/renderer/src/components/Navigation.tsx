@@ -19,6 +19,8 @@ export function Navigation({ activeTab, setActiveTab }: Props) {
     { id: 'appendix_a', label: 'Appendix A' },
     { id: 'appendix_b', label: 'Appendix B' },
     { id: 'appendix_c', label: 'Appendix C' },
+    { id: 'ongoing_sweep', label: 'Sweep' },
+    { id: 'settings', label: 'Settings' },
   ];
 
   return (

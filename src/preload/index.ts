@@ -17,6 +17,9 @@ const api = {
   deleteDoc: (id: string): Promise<void> => ipcRenderer.invoke('db:deleteDoc', id),
   updateThreadState: (state: string): Promise<void> => ipcRenderer.invoke('db:updateThreadState', state),
   activateItemByText: (text: string): Promise<boolean> => ipcRenderer.invoke('db:activateItemByText', text),
+  setAIKey: (provider: string, key: string): Promise<void> => ipcRenderer.invoke('ai:setKey', provider, key),
+  hasAIKey: (provider: string): Promise<boolean> => ipcRenderer.invoke('ai:hasKey', provider),
+  generateAI: (prompt: string, options: any): Promise<string> => ipcRenderer.invoke('ai:generate', prompt, options),
 };
 
 contextBridge.exposeInMainWorld('api', api);
