@@ -23,6 +23,12 @@ const api = {
   exportData: (): Promise<string> => ipcRenderer.invoke('db:exportData'),
   importData: (jsonData: string): Promise<void> => ipcRenderer.invoke('db:importData', jsonData),
   exportMarkdown: (): Promise<string> => ipcRenderer.invoke('db:exportMarkdown'),
+
+  getProjects: (): Promise<any[]> => ipcRenderer.invoke('db:getProjects'),
+  getActiveProject: (): Promise<any> => ipcRenderer.invoke('db:getActiveProject'),
+  createProject: (name: string, statusLabels: string[]): Promise<any> => ipcRenderer.invoke('db:createProject', name, statusLabels),
+  updateProject: (id: string, updates: any): Promise<void> => ipcRenderer.invoke('db:updateProject', id, updates),
+  deleteProject: (id: string): Promise<void> => ipcRenderer.invoke('db:deleteProject', id),
 };
 
 contextBridge.exposeInMainWorld('api', api);

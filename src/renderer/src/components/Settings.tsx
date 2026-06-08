@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 
 interface Props {
   settings: Record<string, string>;
+  project: any;
   reloadSettings: () => Promise<void>;
 }
 
-export function Settings({ settings, reloadSettings }: Props) {
+export function Settings({ settings, project, reloadSettings }: Props) {
   const [aiEnabled, setAiEnabled] = useState(settings.ai_enabled === 'true');
   const [provider, setProvider] = useState<'gemini' | 'claude'>((settings.ai_provider as any) || 'gemini');
 
@@ -25,6 +26,13 @@ export function Settings({ settings, reloadSettings }: Props) {
   const [featCheckpoint, setFeatCheckpoint] = useState(settings.feat_checkpoint === 'true');
   const [featSystemCheck, setFeatSystemCheck] = useState(settings.feat_system_check === 'true');
   const [featSweep, setFeatSweep] = useState(settings.feat_sweep === 'true');
+
+  const [projectName, setProjectName] = useState(project.name || '');
+  const [checkpointThreshold, setCheckpointThreshold] = useState(project.checkpoint_threshold?.toString() || '15');
+  const [sycThreshold, setSycThreshold] = useState(project.syc_threshold?.toString() || '200');
+  const [statusLabels, setStatusLabels] = useState(
+    project.status_labels ? JSON.parse(project.status_labels).join(', ') : ''
+  );
 
   const [statusMsg, setStatusMsg] = useState('');
 
@@ -57,6 +65,17 @@ export function Settings({ settings, reloadSettings }: Props) {
       setClaudeKey('');
       setHasClaudeKey(true);
     }
+
+    let labels = [];
+    if (statusLabels.trim()) {
+      labels = statusLabels.split(',').map(s => s.trim()).filter(s => s);
+    }
+    await window.api.updateProject(project.id, {
+      name: projectName.trim() || project.name,
+      checkpoint_threshold: parseInt(checkpointThreshold, 10) || 15,
+      syc_threshold: parseInt(sycThreshold, 10) || 200,
+      status_labels: JSON.stringify(labels)
+    });
 
     await reloadSettings();
     setStatusMsg('Settings saved successfully.');
@@ -146,6 +165,28 @@ export function Settings({ settings, reloadSettings }: Props) {
       <button onClick={handleSaveSettings} className="bg-blue-600 text-white font-bold py-2 px-6 rounded hover:bg-blue-700">
         Save Settings
       </button>
+
+      <div className="bg-white p-4 rounded shadow-sm border mt-8 space-y-4">
+        <h3 className="font-bold text-gray-700 mb-4 border-b pb-2">Project Settings</h3>
+        <div>
+          <label className="block text-sm font-medium">Project Name</label>
+          <input type="text" className="border p-2 rounded w-full max-w-sm" value={projectName} onChange={e => setProjectName(e.target.value)} />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium">Checkpoint Threshold</label>
+            <input type="number" className="border p-2 rounded w-full" value={checkpointThreshold} onChange={e => setCheckpointThreshold(e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium">System Check Threshold</label>
+            <input type="number" className="border p-2 rounded w-full" value={sycThreshold} onChange={e => setSycThreshold(e.target.value)} />
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium">[context] Status Labels (comma-separated)</label>
+          <input type="text" className="border p-2 rounded w-full" value={statusLabels} onChange={e => setStatusLabels(e.target.value)} />
+        </div>
+      </div>
 
       <div className="bg-white p-4 rounded shadow-sm border mt-8">
         <h3 className="font-bold text-gray-700 mb-4 border-b pb-2">Data Management</h3>

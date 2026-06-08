@@ -58,6 +58,12 @@ app.whenReady().then(() => {
   ipcMain.handle('db:importData', (_, jsonData) => api.importData(jsonData));
   ipcMain.handle('db:exportMarkdown', () => api.exportMarkdown());
 
+  ipcMain.handle('db:getProjects', () => api.getProjects());
+  ipcMain.handle('db:getActiveProject', () => api.getActiveProject());
+  ipcMain.handle('db:createProject', (_, name, statusLabels) => api.createProject(name, statusLabels));
+  ipcMain.handle('db:updateProject', (_, id, updates) => api.updateProject(id, updates));
+  ipcMain.handle('db:deleteProject', (_, id) => api.deleteProject(id));
+
   createWindow();
 
   app.on('activate', () => {

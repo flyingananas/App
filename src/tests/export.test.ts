@@ -11,6 +11,9 @@ describe('Export and Import Logic', () => {
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'promptd-test-'));
     initDb(tempDir);
+    // Setup active project for tests
+    const p = api.createProject('Test Project');
+    api.setSetting('active_project_id', p.id);
   });
 
   afterEach(() => {
@@ -45,7 +48,7 @@ describe('Export and Import Logic', () => {
   });
 
   it('exports markdown successfully', () => {
-    api.setSetting('project_name', 'MD Export Project');
+    api.updateProject(api.getActiveProjectId(), { name: 'MD Export Project' });
     api.insertItem({ type: 'thought', content: 'MD item 1', source: 'manual' });
     api.insertItem({ type: 'decision', content: 'MD item 2', source: 'manual' });
 

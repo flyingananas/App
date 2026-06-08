@@ -20,6 +20,8 @@ function App() {
   const [focusedItemId, setFocusedItemId] = useState<string | null>(null);
   const [dbStatus, setDbStatus] = useState<string>('checking...');
   const [settings, setSettings] = useState<Record<string, string>>({});
+  const [project, setProject] = useState<any>(null);
+  const [projects, setProjects] = useState<any[]>([]);
   const [onboardingComplete, setOnboardingComplete] = useState(true);
 
   const [items, setItems] = useState<any[]>([]);
@@ -46,12 +48,17 @@ function App() {
         if (isConnected) {
           const loadedSettings = await window.api.getSettings();
           setSettings(loadedSettings);
-          if (!loadedSettings.project_name) {
+          if (!loadedSettings.active_project_id) {
             setOnboardingComplete(false);
-          }
+          } else {
+            const activeProject = await window.api.getActiveProject();
+            const allProjects = await window.api.getProjects();
+            setProject(activeProject);
+            setProjects(allProjects);
 
-          const loadedItems = await window.api.getItems();
-          setItems(loadedItems);
+            const loadedItems = await window.api.getItems();
+            setItems(loadedItems);
+          }
         }
       } catch (err) {
         console.error(err);
@@ -94,7 +101,7 @@ function App() {
   const incrementItemCount = () => {
     setNewItemsCount((prev) => {
       const next = prev + 1;
-      const threshold = parseInt(settings.checkpoint_threshold || '15', 10);
+      const threshold = project?.checkpoint_threshold || 15;
       if (next >= threshold) {
         setShowCheckpointPrompt(true);
       }
@@ -102,7 +109,7 @@ function App() {
     });
 
     const total = items.length + 1;
-    const sycThreshold = parseInt(settings.syc_threshold || '200', 10);
+    const sycThreshold = project?.syc_threshold || 200;
     if (total > 0 && total % sycThreshold === 0) {
       setChatMessages((prev) => [...prev, { id: Date.now(), type: 'system', content: `This is your ${sycThreshold}-entry system check. Is now a good time? You can also adjust the threshold — keep at ${sycThreshold}, increase, or decrease.
 1. What is working as designed?
@@ -305,7 +312,29 @@ Recent items: ${JSON.stringify(items.slice(-15).map(i => i.content))}`;
   const handleOnboardingComplete = async () => {
     const loadedSettings = await window.api.getSettings();
     setSettings(loadedSettings);
+    const activeProject = await window.api.getActiveProject();
+    const allProjects = await window.api.getProjects();
+    setProject(activeProject);
+    setProjects(allProjects);
     setOnboardingComplete(true);
+    const loadedItems = await window.api.getItems();
+    setItems(loadedItems);
+  };
+
+  const switchProject = async (id: string) => {
+    if (id === 'NEW_PROJECT') {
+      setOnboardingComplete(false);
+      return;
+    }
+    await window.api.setSetting('active_project_id', id);
+    window.location.reload();
+  };
+
+  const deleteCurrentProject = async () => {
+    if (confirm(`[integrity flag] Are you sure you want to delete the project "${project.name}" and ALL its data? This cannot be undone.`)) {
+      await window.api.deleteProject(project.id);
+      window.location.reload();
+    }
   };
 
   if (!onboardingComplete) {
@@ -315,9 +344,24 @@ Recent items: ${JSON.stringify(items.slice(-15).map(i => i.content))}`;
   return (
     <div className="flex flex-col h-screen bg-gray-100 text-gray-800 font-sans">
       <header className="p-4 bg-white shadow flex justify-between items-center">
-        <h1 className="text-xl font-bold">Prompt D</h1>
-        <div className="text-sm">
-          DB: <span className={`font-semibold ${dbStatus === 'connected' ? 'text-green-600' : 'text-red-600'}`}>{dbStatus}</span>
+        <div className="flex items-center space-x-4">
+          <h1 className="text-xl font-bold">Prompt D</h1>
+          <select
+            className="border border-gray-300 rounded p-1 text-sm bg-gray-50"
+            value={project?.id || ''}
+            onChange={(e) => switchProject(e.target.value)}
+          >
+            {projects.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+            <option value="NEW_PROJECT">+ New Project</option>
+          </select>
+        </div>
+        <div className="text-sm flex items-center space-x-4">
+          <button onClick={deleteCurrentProject} className="text-red-600 hover:underline">Delete Project</button>
+          <span>
+            DB: <span className={`font-semibold ${dbStatus === 'connected' ? 'text-green-600' : 'text-red-600'}`}>{dbStatus}</span>
+          </span>
         </div>
       </header>
 
@@ -331,7 +375,7 @@ Recent items: ${JSON.stringify(items.slice(-15).map(i => i.content))}`;
           <ContextRegister
             items={items}
             refreshItems={loadItems}
-            statusLabels={settings.status_labels ? JSON.parse(settings.status_labels) : []}
+            statusLabels={project?.status_labels ? JSON.parse(project.status_labels) : []}
           />
         )}
         {activeTab === 'doc_register' && <DocRegister />}

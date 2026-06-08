@@ -11,6 +11,9 @@ describe('App Database Methods', () => {
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'promptd-test-'));
     initDb(tempDir);
+    // Setup active project for tests
+    const p = api.createProject('Test Project');
+    api.setSetting('active_project_id', p.id);
   });
 
   afterEach(() => {
