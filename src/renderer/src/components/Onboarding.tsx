@@ -12,7 +12,6 @@ export function Onboarding({ onComplete }: Props) {
   const handleNext = async () => {
     if (step === 1) {
       if (!projectName.trim()) return;
-      await window.api.setSetting('project_name', projectName.trim());
       await window.api.setSetting('mode', 'NEW');
       setStep(2);
     } else if (step === 2) {
@@ -23,7 +22,8 @@ export function Onboarding({ onComplete }: Props) {
         // default suggestions
         labels = ['todo', 'in-progress', 'done', 'blocked'];
       }
-      await window.api.setSetting('status_labels', JSON.stringify(labels));
+      const project = await window.api.createProject(projectName.trim(), labels);
+      await window.api.setSetting('active_project_id', project.id);
       onComplete();
     }
   };
