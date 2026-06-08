@@ -77,7 +77,8 @@ function App() {
       // Cmd+K (Mac) or Ctrl+K (Windows/Linux)
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
-        commandInputRef.current?.focus();
+        setActiveTab('chat');
+        setTimeout(() => commandInputRef.current?.focus(), 50);
       }
       // Escape to blur
       if (e.key === 'Escape') {
@@ -163,15 +164,83 @@ Recent items: ${JSON.stringify(items.slice(-15).map(i => i.content))}`;
       try {
         const provider = (settings.ai_provider as 'gemini' | 'claude') || 'gemini';
         const model = settings[`${provider}_light`] || 'gemini-2.5-flash';
-        const prompt = `Analyze this message: "${itemContent}". Extract any named people, events, anecdotes, or biographical details that should be logged as context. Return ONLY a single string of the extracted context, or exactly "NONE" if nothing qualifies.`;
+        const prompt = `Analyze this message: "${itemContent}". Detect any named people, events, anecdotes, or biographical details that should be logged as context. Also detect if a Document is mentioned that should be logged as a doc.
+Return ONLY valid JSON in this exact structure, or an empty JSON array [] if nothing qualifies:
+[
+  { "type": "context", "content": "extracted detail here", "explanation": "reasoning" },
+  { "type": "doc", "content": "doc name", "explanation": "reasoning" }
+]`;
         const result = await window.api.generateAI(prompt, { provider, model });
-        if (result && result.trim() !== 'NONE') {
-          setChatMessages(prev => [...prev, { id: Date.now(), type: 'system', content: `[AI Suggestion] Propose logging [context]: ${result.trim()}` }]);
+        let parsed = [];
+        try {
+          parsed = JSON.parse(result.replace(/```json|```/g, '').trim());
+        } catch { }
+
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          for (const suggestion of parsed) {
+            if (project?.ai_auto_apply === 1) {
+              // Auto apply
+              if (suggestion.type === 'doc') {
+                const docId = await window.api.insertDoc({ name: suggestion.content });
+                setChatMessages(prev => [...prev, {
+                  id: Date.now(),
+                  type: 'auto_applied',
+                  suggestion: { ...suggestion, dbId: docId.id, target: 'doc' },
+                  content: `Auto-applied [doc]: ${suggestion.content}`
+                }]);
+              } else {
+                const itemId = await window.api.insertItem({ type: 'context', content: suggestion.content, source: 'inferred' });
+                setChatMessages(prev => [...prev, {
+                  id: Date.now(),
+                  type: 'auto_applied',
+                  suggestion: { ...suggestion, dbId: itemId.id, target: 'item' },
+                  content: `Auto-applied [context]: ${suggestion.content}`
+                }]);
+              }
+              const loadedItems = await window.api.getItems();
+              setItems(loadedItems);
+            } else {
+              // Push to review flow
+              setChatMessages(prev => [...prev, {
+                id: Date.now(),
+                type: 'suggestion',
+                suggestion
+              }]);
+            }
+          }
         }
       } catch (err: any) {
         console.error('Context detection failed:', err);
       }
     }
+  };
+
+  const handleSuggestionAction = async (msgId: number, action: 'accept' | 'reject' | 'edit', suggestionData?: any) => {
+    if (action === 'accept' && suggestionData) {
+      if (suggestionData.type === 'doc') {
+        await window.api.insertDoc({ name: suggestionData.content });
+      } else {
+        await window.api.insertItem({ type: 'context', content: suggestionData.content, source: 'inferred' });
+      }
+      const loadedItems = await window.api.getItems();
+      setItems(loadedItems);
+      setChatMessages(prev => prev.filter(m => m.id !== msgId));
+    } else if (action === 'reject') {
+      setChatMessages(prev => prev.filter(m => m.id !== msgId));
+    } else if (action === 'edit' && suggestionData) {
+      setChatMessages(prev => prev.map(m => m.id === msgId ? { ...m, isEditing: true } : m));
+    }
+  };
+
+  const handleUndoAutoApply = async (msgId: number, suggestionData: any) => {
+    if (suggestionData.target === 'doc') {
+      await window.api.deleteDoc(suggestionData.dbId);
+    } else {
+      await window.api.deleteItem(suggestionData.dbId);
+    }
+    const loadedItems = await window.api.getItems();
+    setItems(loadedItems);
+    setChatMessages(prev => prev.filter(m => m.id !== msgId));
   };
 
   const handleInputSubmit = async (e: React.FormEvent) => {
@@ -283,7 +352,10 @@ Recent items: ${JSON.stringify(items.slice(-15).map(i => i.content))}`;
 3. What keeps being worked around?
 4. What rule has drifted or is applied inconsistently?` }]);
     } else if (parsed.type === 'chat') {
-      // Inferred logging
+      // Ordinary chat message -> push to history
+      setChatMessages((prev) => [...prev, { id: Date.now(), type: 'chat', content: parsed.content }]);
+
+      // Inferred logging logic (background)
       if (settings.ai_enabled === 'true' && settings.feat_inferred === 'true') {
         const newItem = await window.api.insertItem({
           type: 'thought',
@@ -294,9 +366,39 @@ Recent items: ${JSON.stringify(items.slice(-15).map(i => i.content))}`;
         incrementItemCount();
         setChatMessages((prev) => [...prev, { id: Date.now(), type: 'system', content: 'noted (inferred)' }]);
         runContextAutoDetection(parsed.content);
-      } else {
-        // Ordinary chat message
-        setChatMessages((prev) => [...prev, { id: Date.now(), type: 'chat', content: parsed.content }]);
+      } else if (settings.ai_enabled === 'true') {
+        // AI Conversation flow
+        const provider = (settings.ai_provider as 'gemini' | 'claude') || 'gemini';
+        const model = settings[`${provider}_light`] || 'gemini-2.5-flash';
+
+        const recentItems = items.slice(-10).map(i => `[${i.type}] ${i.content}`).join('\n');
+        const contextItems = items.filter(i => i.type === 'context').map(i => i.content).join(', ');
+
+        let openThreadsStr = 'None';
+        try {
+          const openThreads = await window.api.getActiveThreads();
+          if (openThreads.length > 0) {
+            openThreadsStr = openThreads.map((t: any) => t.title || t.id).join(', ');
+          }
+        } catch {}
+
+        const prompt = `You are Prompt D, an AI project companion. The user said: "${parsed.content}".
+Respond naturally. Here is recent context about the project to ground your response:
+Recent logs:
+${recentItems}
+
+Context Register:
+${contextItems}
+
+Open Threads:
+${openThreadsStr}`;
+
+        try {
+          const aiResponse = await window.api.generateAI(prompt, { provider, model });
+          setChatMessages((prev) => [...prev, { id: Date.now(), type: 'system', content: aiResponse }]);
+        } catch (err: any) {
+          setChatMessages((prev) => [...prev, { id: Date.now(), type: 'system', content: `[integrity flag] AI Conversation failed (${err.message}).` }]);
+        }
       }
     }
 
@@ -386,8 +488,8 @@ Recent items: ${JSON.stringify(items.slice(-15).map(i => i.content))}`;
         {activeTab === 'ongoing_sweep' && <OngoingSweep settings={settings} onExtract={loadItems} />}
         {activeTab === 'settings' && <Settings settings={settings} reloadSettings={async () => { const s = await window.api.getSettings(); setSettings(s); }} />}
         {activeTab === 'outline' && (
-          <div className="p-4 flex flex-col space-y-8 h-full">
-            <div className="flex-1 overflow-y-auto space-y-6">
+          <div className="p-4 h-full overflow-y-auto">
+            <div className="space-y-6">
               <h2 className="text-xl font-bold border-b pb-2">Logged Items (Grouped)</h2>
               {Object.keys(groupedItems).map((type) => (
                 <div key={type} className="space-y-2">
@@ -400,57 +502,115 @@ Recent items: ${JSON.stringify(items.slice(-15).map(i => i.content))}`;
                 </div>
               ))}
             </div>
+          </div>
+        )}
+        {activeTab === 'chat' && (
+          <div className="flex flex-col h-full">
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              <h2 className="text-lg font-bold sticky top-0 bg-gray-100 pb-2 z-10">Chat</h2>
+              {chatMessages.map((msg) => {
+                if (msg.type === 'suggestion') {
+                  return (
+                    <div key={msg.id} className="p-3 bg-indigo-50 border border-indigo-200 rounded shadow-sm text-indigo-900">
+                      <h4 className="font-bold mb-1">AI Suggestion</h4>
+                      <p className="text-sm mb-2">{msg.suggestion.explanation}</p>
 
-            <div className="border-t pt-4 space-y-2">
-              <h2 className="text-lg font-bold">Chat</h2>
-              {chatMessages.map((msg) => (
-                <div key={msg.id} className={`p-2 rounded text-sm ${msg.type === 'system' ? 'bg-blue-100 text-blue-800' : 'bg-gray-200 text-gray-800'}`}>
-                  {msg.content}
-                </div>
-              ))}
+                      {msg.isEditing ? (
+                        <div className="space-y-2 mb-3">
+                          <select
+                            className="border border-indigo-300 p-1 rounded text-sm w-full"
+                            value={msg.suggestion.type}
+                            onChange={(e) => {
+                              msg.suggestion.type = e.target.value;
+                              setChatMessages([...chatMessages]);
+                            }}
+                          >
+                            <option value="context">context</option>
+                            <option value="doc">doc</option>
+                          </select>
+                          <input
+                            className="border border-indigo-300 p-1 rounded text-sm w-full"
+                            type="text"
+                            value={msg.suggestion.content}
+                            onChange={(e) => {
+                              msg.suggestion.content = e.target.value;
+                              setChatMessages([...chatMessages]);
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="bg-white p-2 rounded border border-indigo-100 mb-3 text-sm font-mono">
+                          [{msg.suggestion.type}] {msg.suggestion.content}
+                        </div>
+                      )}
+
+                      <div className="flex space-x-2">
+                        <button onClick={() => handleSuggestionAction(msg.id, 'accept', msg.suggestion)} className="bg-indigo-600 text-white px-3 py-1 rounded text-xs font-bold">Accept</button>
+                        {!msg.isEditing && (
+                          <button onClick={() => handleSuggestionAction(msg.id, 'edit', msg.suggestion)} className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded text-xs font-bold hover:bg-indigo-200">Edit</button>
+                        )}
+                        <button onClick={() => handleSuggestionAction(msg.id, 'reject')} className="bg-transparent text-indigo-800 border border-indigo-300 px-3 py-1 rounded text-xs font-bold hover:bg-indigo-100">Reject</button>
+                      </div>
+                    </div>
+                  );
+                } else if (msg.type === 'auto_applied') {
+                  return (
+                    <div key={msg.id} className="p-2 bg-indigo-100 border border-indigo-200 rounded text-sm flex justify-between items-center text-indigo-800">
+                      <span>{msg.content}</span>
+                      <button onClick={() => handleUndoAutoApply(msg.id, msg.suggestion)} className="text-xs bg-white border border-indigo-300 px-2 py-1 rounded hover:bg-indigo-50 font-bold">Undo</button>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div key={msg.id} className={`p-2 rounded text-sm ${msg.type === 'system' ? 'bg-blue-100 text-blue-800' : 'bg-gray-200 text-gray-800'}`}>
+                    {msg.content}
+                  </div>
+                );
+              })}
               <div ref={endOfMessagesRef} />
             </div>
+
+            {showCheckpointPrompt && (
+              <div className="p-4 bg-yellow-100 border-t border-b border-yellow-300 flex justify-between items-center">
+                <span className="text-yellow-800 font-medium">15+ items logged. Ready for a checkpoint?</span>
+                <div className="space-x-2">
+                  <button onClick={() => setShowCheckpointPrompt(false)} className="px-3 py-1 bg-yellow-200 text-yellow-800 rounded hover:bg-yellow-300">Skip</button>
+                  <button onClick={handleCheckpointConfirm} className="px-3 py-1 bg-yellow-600 text-white rounded hover:bg-yellow-700">Confirm Checkpoint</button>
+                </div>
+              </div>
+            )}
+
+            <footer className="p-4 bg-white shadow-inner flex flex-col space-y-2 border-t">
+              {lghState !== 'IDLE' && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded shadow-sm text-blue-800 mb-2">
+                  <strong>Log Hours:</strong> {lghPrompt}
+                </div>
+              )}
+              {lghState === 'IDLE' && lghPrompt && (
+                <div className="p-2 text-sm text-green-600 italic">{lghPrompt}</div>
+              )}
+              <form onSubmit={handleInputSubmit} className="flex space-x-2">
+                <input
+                  ref={commandInputRef}
+                  type="text"
+                  className="flex-1 border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Type a message or command (e.g., 'drp: thought', 'lgh')... (Cmd/Ctrl + K to focus)"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  autoFocus
+                />
+                <button
+                  type="submit"
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded transition-colors"
+                >
+                  Send
+                </button>
+              </form>
+            </footer>
           </div>
         )}
       </main>
-
-      {showCheckpointPrompt && (
-        <div className="p-4 bg-yellow-100 border-t border-b border-yellow-300 flex justify-between items-center">
-          <span className="text-yellow-800 font-medium">15+ items logged. Ready for a checkpoint?</span>
-          <div className="space-x-2">
-            <button onClick={() => setShowCheckpointPrompt(false)} className="px-3 py-1 bg-yellow-200 text-yellow-800 rounded hover:bg-yellow-300">Skip</button>
-            <button onClick={handleCheckpointConfirm} className="px-3 py-1 bg-yellow-600 text-white rounded hover:bg-yellow-700">Confirm Checkpoint</button>
-          </div>
-        </div>
-      )}
-
-      <footer className="p-4 bg-white shadow-inner flex flex-col space-y-2">
-        {lghState !== 'IDLE' && (
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded shadow-sm text-blue-800 mb-2">
-            <strong>Log Hours:</strong> {lghPrompt}
-          </div>
-        )}
-        {lghState === 'IDLE' && lghPrompt && (
-          <div className="p-2 text-sm text-green-600 italic">{lghPrompt}</div>
-        )}
-        <form onSubmit={handleInputSubmit} className="flex space-x-2">
-          <input
-            ref={commandInputRef}
-            type="text"
-            className="flex-1 border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Type a message or command (e.g., 'drp: thought', 'lgh')... (Cmd/Ctrl + K to focus)"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            autoFocus
-          />
-          <button
-            type="submit"
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded transition-colors"
-          >
-            Send
-          </button>
-        </form>
-      </footer>
     </div>
   );
 }

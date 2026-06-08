@@ -8,11 +8,12 @@ interface Props {
 }
 
 export function Navigation({ activeTab, setActiveTab }: Props) {
-  const tabs: { id: Tab, label: string }[] = [
+  const tabs: { id: Tab | 'chat', label: string }[] = [
     { id: 'cover', label: 'Cover' },
     { id: 'index', label: 'Index' },
     { id: 'dev_track', label: 'Dev Track' },
     { id: 'outline', label: 'Outline' },
+    { id: 'chat', label: 'Chat' },
     { id: 'context_register', label: '[context] Register' },
     { id: 'doc_register', label: '[doc] Register' },
     { id: 'history', label: 'History' },

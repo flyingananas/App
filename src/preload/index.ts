@@ -16,6 +16,7 @@ const api = {
   getDocs: (): Promise<any[]> => ipcRenderer.invoke('db:getDocs'),
   deleteDoc: (id: string): Promise<void> => ipcRenderer.invoke('db:deleteDoc', id),
   updateThreadState: (state: string): Promise<void> => ipcRenderer.invoke('db:updateThreadState', state),
+  getActiveThreads: (): Promise<{ id: string, title: string }[]> => ipcRenderer.invoke('db:getActiveThreads'),
   activateItemByText: (text: string): Promise<boolean> => ipcRenderer.invoke('db:activateItemByText', text),
   setAIKey: (provider: string, key: string): Promise<void> => ipcRenderer.invoke('ai:setKey', provider, key),
   hasAIKey: (provider: string): Promise<boolean> => ipcRenderer.invoke('ai:hasKey', provider),
