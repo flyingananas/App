@@ -33,6 +33,7 @@ export function Settings({ settings, project, reloadSettings }: Props) {
   const [statusLabels, setStatusLabels] = useState(
     project.status_labels ? JSON.parse(project.status_labels).join(', ') : ''
   );
+  const [aiAutoApply, setAiAutoApply] = useState(project.ai_auto_apply === 1);
 
   const [statusMsg, setStatusMsg] = useState('');
 
@@ -74,7 +75,8 @@ export function Settings({ settings, project, reloadSettings }: Props) {
       name: projectName.trim() || project.name,
       checkpoint_threshold: parseInt(checkpointThreshold, 10) || 15,
       syc_threshold: parseInt(sycThreshold, 10) || 200,
-      status_labels: JSON.stringify(labels)
+      status_labels: JSON.stringify(labels),
+      ai_auto_apply: aiAutoApply ? 1 : 0
     });
 
     await reloadSettings();
@@ -185,6 +187,12 @@ export function Settings({ settings, project, reloadSettings }: Props) {
         <div>
           <label className="block text-sm font-medium">[context] Status Labels (comma-separated)</label>
           <input type="text" className="border p-2 rounded w-full" value={statusLabels} onChange={e => setStatusLabels(e.target.value)} />
+        </div>
+        <div className="pt-2">
+          <label className="flex items-center space-x-2 font-medium cursor-pointer">
+            <input type="checkbox" checked={aiAutoApply} onChange={e => setAiAutoApply(e.target.checked)} className="w-4 h-4" />
+            <span>Auto-apply AI suggestions (skips review card)</span>
+          </label>
         </div>
       </div>
 

@@ -48,6 +48,7 @@ app.whenReady().then(() => {
   ipcMain.handle('db:getDocs', () => api.getDocs());
   ipcMain.handle('db:deleteDoc', (_, id) => api.deleteDoc(id));
   ipcMain.handle('db:updateThreadState', (_, state) => api.updateThreadState(state));
+  ipcMain.handle('db:getActiveThreads', () => api.getActiveThreads());
   ipcMain.handle('db:activateItemByText', (_, text) => api.activateItemByText(text));
 
   ipcMain.handle('ai:setKey', (_, provider, key) => secureStorage.setAIKey(provider, key));

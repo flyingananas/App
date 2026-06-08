@@ -262,6 +262,11 @@ export function updateThreadState(state: 'active' | 'parked' | 'resolved'): void
   }
 }
 
+export function getActiveThreads(): { id: string, title: string }[] {
+  if (!db) throw new Error('Database not initialized');
+  return db.prepare(`SELECT id, title FROM threads WHERE state = 'active' AND project_id = ?`).all(getActiveProjectId()) as { id: string, title: string }[];
+}
+
 export function activateItemByText(text: string): boolean {
   if (!db) throw new Error('Database not initialized');
   const stmt = db.prepare(`UPDATE items SET type = 'action', updated_at = @now WHERE content LIKE @text AND project_id = @pid`);

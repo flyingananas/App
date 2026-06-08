@@ -9,6 +9,7 @@ export function Index({ setActiveTab }: Props) {
     { id: 'cover', label: 'Cover' },
     { id: 'dev_track', label: 'Project Development Track' },
     { id: 'outline', label: 'Outline' },
+    { id: 'chat', label: 'Chat' },
     { id: 'context_register', label: '[context] Register' },
     { id: 'doc_register', label: '[doc] Register' },
     { id: 'history', label: 'History / Archive' },
