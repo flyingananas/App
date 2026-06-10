@@ -7,6 +7,10 @@ interface Props {
 }
 
 export function Settings({ settings, project, reloadSettings }: Props) {
+  if (!project) {
+    return <div className="p-6 text-gray-500">Loading project settings...</div>;
+  }
+
   const [aiEnabled, setAiEnabled] = useState(settings.ai_enabled === 'true');
   const [provider, setProvider] = useState<'gemini' | 'claude'>((settings.ai_provider as any) || 'gemini');
 

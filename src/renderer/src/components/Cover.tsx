@@ -6,6 +6,10 @@ interface Props {
 }
 
 export function Cover({ settings, project }: Props) {
+  if (!project) {
+    return <div className="p-6 text-gray-500 text-center mt-20">Loading cover...</div>;
+  }
+
   return (
     <div className="p-6 h-full flex flex-col justify-center items-center">
       <h1 className="text-4xl font-bold mb-4">{project.name || 'Prompt D Project'}</h1>
