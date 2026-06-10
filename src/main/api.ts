@@ -60,10 +60,32 @@ export function setSetting(key: string, value: string): void {
 
 export function getActiveProjectId(): string {
   const settings = getSettings();
-  if (!settings['active_project_id']) {
-    throw new Error('No active project ID found.');
+  let projectId = settings['active_project_id'];
+
+  if (!projectId) {
+    const projects = getProjects();
+    if (projects.length > 0) {
+      projectId = projects[0].id;
+      setSetting('active_project_id', projectId);
+    } else {
+      throw new Error('No projects found in the database.');
+    }
   }
-  return settings['active_project_id'];
+
+  // Validate that the project still exists
+  if (!db) throw new Error('Database not initialized');
+  const projectExists = db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId);
+  if (!projectExists) {
+    const projects = getProjects();
+    if (projects.length > 0) {
+      projectId = projects[0].id;
+      setSetting('active_project_id', projectId);
+    } else {
+      throw new Error('No projects found in the database.');
+    }
+  }
+
+  return projectId;
 }
 
 // Projects
