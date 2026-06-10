@@ -18,6 +18,9 @@ import { OngoingSweep } from './components/OngoingSweep';
 function App() {
   const [activeTab, setActiveTab] = useState<any>('outline');
   const [focusedItemId, setFocusedItemId] = useState<string | null>(null);
+  const [appLoading, setAppLoading] = useState(true);
+  const [appError, setAppError] = useState<string | null>(null);
+
   const [dbStatus, setDbStatus] = useState<string>('checking...');
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [project, setProject] = useState<any>(null);
@@ -43,26 +46,38 @@ function App() {
   useEffect(() => {
     async function init() {
       try {
+        setAppLoading(true);
+        setAppError(null);
+
         const isConnected = await window.api.pingDb();
         setDbStatus(isConnected ? 'connected' : 'not connected');
-        if (isConnected) {
-          const loadedSettings = await window.api.getSettings();
-          setSettings(loadedSettings);
-          if (!loadedSettings.active_project_id) {
-            setOnboardingComplete(false);
-          } else {
-            const activeProject = await window.api.getActiveProject();
-            const allProjects = await window.api.getProjects();
-            setProject(activeProject);
-            setProjects(allProjects);
 
-            const loadedItems = await window.api.getItems();
-            setItems(loadedItems);
+        if (isConnected) {
+          // getActiveProject handles fallback/creation securely via main process
+          const activeProject = await window.api.getActiveProject();
+          const allProjects = await window.api.getProjects();
+          const loadedSettings = await window.api.getSettings();
+
+          setSettings(loadedSettings);
+          setProject(activeProject);
+          setProjects(allProjects);
+
+          if (!loadedSettings.mode && allProjects.length <= 1 && activeProject.name === 'Default Project') {
+            // First run condition
+            setOnboardingComplete(false);
           }
+
+          const loadedItems = await window.api.getItems();
+          setItems(loadedItems);
+        } else {
+          setAppError('Database connection failed.');
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error(err);
         setDbStatus('error');
+        setAppError(err.message || 'An unknown error occurred during initialization.');
+      } finally {
+        setAppLoading(false);
       }
     }
     init();
@@ -438,6 +453,25 @@ ${openThreadsStr}`;
       window.location.reload();
     }
   };
+
+  if (appLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-100 text-gray-500">
+        Loading application data...
+      </div>
+    );
+  }
+
+  if (appError) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-100">
+        <div className="bg-red-50 text-red-800 p-6 rounded shadow border border-red-200 max-w-lg">
+          <h2 className="text-xl font-bold mb-2">Failed to load</h2>
+          <p>{appError}</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!onboardingComplete) {
     return <Onboarding onComplete={handleOnboardingComplete} />;

@@ -62,27 +62,30 @@ export function getActiveProjectId(): string {
   const settings = getSettings();
   let projectId = settings['active_project_id'];
 
-  if (!projectId) {
-    const projects = getProjects();
-    if (projects.length > 0) {
+  const validateOrFallback = () => {
+    let projects = getProjects();
+    if (projects.length === 0) {
+      // Create a default project if none exist to ensure app doesn't hang
+      const defaultProject = createProject('Default Project');
+      projectId = defaultProject.id;
+      setSetting('active_project_id', projectId);
+      return projectId;
+    } else {
       projectId = projects[0].id;
       setSetting('active_project_id', projectId);
-    } else {
-      throw new Error('No projects found in the database.');
+      return projectId;
     }
+  };
+
+  if (!projectId) {
+    return validateOrFallback();
   }
 
   // Validate that the project still exists
   if (!db) throw new Error('Database not initialized');
   const projectExists = db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId);
   if (!projectExists) {
-    const projects = getProjects();
-    if (projects.length > 0) {
-      projectId = projects[0].id;
-      setSetting('active_project_id', projectId);
-    } else {
-      throw new Error('No projects found in the database.');
-    }
+    return validateOrFallback();
   }
 
   return projectId;
