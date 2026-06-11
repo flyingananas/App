@@ -7,10 +7,6 @@ interface Props {
 }
 
 export function Settings({ settings, project, reloadSettings }: Props) {
-  if (!project) {
-    return <div className="p-6 text-gray-500">Loading project settings...</div>;
-  }
-
   const [aiEnabled, setAiEnabled] = useState(settings.ai_enabled === 'true');
   const [provider, setProvider] = useState<'gemini' | 'claude'>((settings.ai_provider as any) || 'gemini');
 
@@ -31,13 +27,13 @@ export function Settings({ settings, project, reloadSettings }: Props) {
   const [featSystemCheck, setFeatSystemCheck] = useState(settings.feat_system_check === 'true');
   const [featSweep, setFeatSweep] = useState(settings.feat_sweep === 'true');
 
-  const [projectName, setProjectName] = useState(project.name || '');
-  const [checkpointThreshold, setCheckpointThreshold] = useState(project.checkpoint_threshold?.toString() || '15');
-  const [sycThreshold, setSycThreshold] = useState(project.syc_threshold?.toString() || '200');
+  const [projectName, setProjectName] = useState(project?.name || '');
+  const [checkpointThreshold, setCheckpointThreshold] = useState(project?.checkpoint_threshold?.toString() || '15');
+  const [sycThreshold, setSycThreshold] = useState(project?.syc_threshold?.toString() || '200');
   const [statusLabels, setStatusLabels] = useState(
-    project.status_labels ? JSON.parse(project.status_labels).join(', ') : ''
+    project?.status_labels ? JSON.parse(project.status_labels).join(', ') : ''
   );
-  const [aiAutoApply, setAiAutoApply] = useState(project.ai_auto_apply === 1);
+  const [aiAutoApply, setAiAutoApply] = useState(project?.ai_auto_apply === 1);
 
   const [statusMsg, setStatusMsg] = useState('');
 
@@ -45,6 +41,11 @@ export function Settings({ settings, project, reloadSettings }: Props) {
     window.api.hasAIKey('gemini').then(setHasGeminiKey);
     window.api.hasAIKey('claude').then(setHasClaudeKey);
   }, []);
+
+  // Rules of Hooks: guard return must be after hooks
+  if (!project) {
+    return <div className="p-6 text-gray-500">Loading project settings...</div>;
+  }
 
   const handleSaveSettings = async () => {
     await window.api.setSetting('ai_enabled', String(aiEnabled));

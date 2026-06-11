@@ -504,7 +504,7 @@ ${openThreadsStr}`;
       <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
 
       <main className="flex-1 overflow-y-auto">
-        {activeTab === 'cover' && <Cover settings={settings} />}
+        {activeTab === 'cover' && <Cover settings={settings} project={project} />}
         {activeTab === 'index' && <Index setActiveTab={setActiveTab} />}
         {activeTab === 'dev_track' && <DevTrack />}
         {activeTab === 'context_register' && (
@@ -520,7 +520,7 @@ ${openThreadsStr}`;
         {activeTab === 'appendix_b' && <AppendixB />}
         {activeTab === 'appendix_c' && <AppendixC />}
         {activeTab === 'ongoing_sweep' && <OngoingSweep settings={settings} onExtract={loadItems} />}
-        {activeTab === 'settings' && <Settings settings={settings} reloadSettings={async () => { const s = await window.api.getSettings(); setSettings(s); }} />}
+        {activeTab === 'settings' && <Settings settings={settings} project={project} reloadSettings={async () => { const s = await window.api.getSettings(); setSettings(s); }} />}
         {activeTab === 'outline' && (
           <div className="p-4 h-full overflow-y-auto">
             <div className="space-y-6">
