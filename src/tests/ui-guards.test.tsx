@@ -1,11 +1,22 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { Settings } from '../renderer/src/components/Settings';
 import { Cover } from '../renderer/src/components/Cover';
 
+const mockApi = {
+  hasAIKey: vi.fn().mockResolvedValue(false),
+};
+
 describe('UI Components Null Guards', () => {
+  beforeEach(() => {
+    (window as any).api = mockApi;
+  });
+
+  afterEach(() => {
+    delete (window as any).api;
+  });
   it('renders Settings safely without crashing when project is null or undefined', () => {
     // Suppress React warnings if it throws, but expect not to
     const { container } = render(

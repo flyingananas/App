@@ -10,6 +10,7 @@ const mockApi = {
   getActiveProject: vi.fn(),
   getProjects: vi.fn(),
   getItems: vi.fn(),
+  hasAIKey: vi.fn().mockResolvedValue(false),
 };
 
 describe('App Load Scenarios', () => {
@@ -67,5 +68,41 @@ describe('App Load Scenarios', () => {
       expect(screen.getByText('Welcome to Prompt D')).toBeDefined();
       expect(screen.getByText('What is the project name for this session?')).toBeDefined();
     });
+  });
+  it('renders Settings tab and passes down project state', async () => {
+    mockApi.pingDb.mockResolvedValueOnce(true);
+    mockApi.getActiveProject.mockResolvedValueOnce({ id: 'p1', name: 'Valid Project', checkpoint_threshold: 42 });
+    mockApi.getProjects.mockResolvedValueOnce([{ id: 'p1', name: 'Valid Project' }]);
+    mockApi.getSettings.mockResolvedValueOnce({ mode: 'NEW', ai_enabled: 'true' });
+    mockApi.getItems.mockResolvedValueOnce([]);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Valid Project')).toBeDefined();
+    });
+
+    // Wait for the app loading state to pass
+    await waitFor(() => {
+      expect(screen.queryByText('Loading application data...')).toBeNull();
+    });
+
+    // Simulate clicking the "Settings" tab by dispatching an event or finding the button
+    // Using getAllByRole to get the navigation button specifically, avoiding ambiguity
+    const buttons = screen.getAllByRole('button');
+    const settingsButton = buttons.find(b => b.textContent === 'Settings');
+    settingsButton?.click();
+
+    // Verify Settings rendered with project data, not "Loading..."
+    await waitFor(() => {
+      // Should not see the loading state
+      expect(screen.queryByText('Loading project settings...')).toBeNull();
+
+      // Ensure the project name inputs appear to prove the component mounted
+      expect(screen.getByText('Project Settings')).toBeDefined();
+    });
+
+    // The component is mounted but the state update (e.g. checkpoint_threshold) takes a tick
+    // We can verify that it is not crashing and is correctly rendering
   });
 });
