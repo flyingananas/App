@@ -67,7 +67,7 @@ export async function generateContent(promptOrMessages: string | Message[], opti
       return contentBlock ? contentBlock.text : '';
     }
     throw new Error(`Unknown provider: ${options.provider}`);
-  } catch (error: any) {
-    throw new Error(`${options.provider} failed: ${error.message}`);
+  } catch (error: unknown) {
+    throw new Error(`${options.provider} failed: ${(error as Error).message}`);
   }
 }
