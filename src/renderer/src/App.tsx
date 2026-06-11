@@ -72,10 +72,10 @@ function App() {
         } else {
           setAppError('Database connection failed.');
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(err);
         setDbStatus('error');
-        setAppError(err.message || 'An unknown error occurred during initialization.');
+        setAppError((err as Error).message || 'An unknown error occurred during initialization.');
       } finally {
         setAppLoading(false);
       }
@@ -145,8 +145,8 @@ function App() {
         const prompt = `You are a project manager. Write a concise prose checkpoint summary (a paragraph) based on the recent project activity. Address: unresolved threads, unexamined assumptions, current context, recent items logged, and untouched docs.
 Recent items: ${JSON.stringify(items.slice(-15).map(i => i.content))}`;
         content = await window.api.generateAI(prompt, { provider, model });
-      } catch (err: any) {
-        setChatMessages(prev => [...prev, { id: Date.now(), type: 'system', content: `[integrity flag] Checkpoint AI failed (${err.message}). Falling back to manual.` }]);
+      } catch (err: unknown) {
+        setChatMessages(prev => [...prev, { id: Date.now(), type: 'system', content: `[integrity flag] Checkpoint AI failed (${(err as Error).message}). Falling back to manual.` }]);
       }
     }
 
@@ -224,7 +224,7 @@ Return ONLY valid JSON in this exact structure, or an empty JSON array [] if not
             }
           }
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Context detection failed:', err);
       }
     }
@@ -411,8 +411,8 @@ ${openThreadsStr}`;
         try {
           const aiResponse = await window.api.generateAI(prompt, { provider, model });
           setChatMessages((prev) => [...prev, { id: Date.now(), type: 'system', content: aiResponse }]);
-        } catch (err: any) {
-          setChatMessages((prev) => [...prev, { id: Date.now(), type: 'system', content: `[integrity flag] AI Conversation failed (${err.message}).` }]);
+        } catch (err: unknown) {
+          setChatMessages((prev) => [...prev, { id: Date.now(), type: 'system', content: `[integrity flag] AI Conversation failed (${(err as Error).message}).` }]);
         }
       }
     }
