@@ -28,8 +28,8 @@ export function ContextRegister({ items, refreshItems, statusLabels }: Props) {
       await window.api.updateItem(id, { content: editContent, status: editStatus || null });
       setEditingId(null);
       await refreshItems();
-    } catch (err: unknown) {
-      alert(`[integrity flag] ${(err as Error).message}`);
+    } catch (err: any) {
+      alert(`[integrity flag] ${err.message}`);
     }
   };
 

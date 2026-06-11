@@ -25,8 +25,8 @@ export function DocRegister() {
       await window.api.updateDoc(id, editDoc);
       setEditingId(null);
       await loadDocs();
-    } catch (err: unknown) {
-      alert(`[integrity flag] ${(err as Error).message}`);
+    } catch (err: any) {
+      alert(`[integrity flag] ${err.message}`);
     }
   };
 
