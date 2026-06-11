@@ -29,19 +29,19 @@ export function Onboarding({ onComplete }: Props) {
   };
 
   return (
-    <div className="flex items-center justify-center h-screen bg-gray-100 font-sans">
-      <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
-        <h2 className="text-2xl font-bold mb-6 text-gray-800">
-          {step === 1 ? 'Welcome to Prompt D' : 'Status Labels'}
+    <div className="flex items-center justify-center h-screen bg-slate-50 font-sans">
+      <div className="card p-10 max-w-md w-full shadow-lg border-slate-200">
+        <h2 className="text-3xl font-bold tracking-tight text-slate-800 mb-8 text-center">
+          {step === 1 ? 'Welcome to Prompt D' : 'Context Labels'}
         </h2>
 
         {step === 1 && (
-          <div className="space-y-4">
-            <p className="text-gray-600">What is the project name for this session?</p>
+          <div className="space-y-5">
+            <p className="text-slate-600 font-medium">What is the project name for this session?</p>
             <input
               autoFocus
               type="text"
-              className="w-full border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="input-field w-full py-3"
               value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
               placeholder="e.g. Project Alpha"
@@ -51,17 +51,17 @@ export function Onboarding({ onComplete }: Props) {
         )}
 
         {step === 2 && (
-          <div className="space-y-4">
-            <p className="text-gray-600">
-              Would you like to set status labels for your <code>[context]</code> register?
+          <div className="space-y-5">
+            <p className="text-slate-600 font-medium leading-relaxed">
+              Would you like to set status labels for your <span className="font-mono text-sm bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">[context]</span> register?
             </p>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-slate-500 leading-relaxed">
               Provide a comma-separated list, or leave blank to use defaults (todo, in-progress, done, blocked).
             </p>
             <input
               autoFocus
               type="text"
-              className="w-full border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="input-field w-full py-3"
               value={statusLabels}
               onChange={(e) => setStatusLabels(e.target.value)}
               placeholder="e.g. active, waiting, completed"
@@ -70,24 +70,24 @@ export function Onboarding({ onComplete }: Props) {
           </div>
         )}
 
-        <div className="mt-6 flex justify-end space-x-3">
+        <div className="mt-10 flex justify-end items-center space-x-4">
           {step === 2 && (
             <button
               onClick={() => {
                 setStatusLabels('');
                 handleNext();
               }}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              className="text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors"
             >
               Skip
             </button>
           )}
           <button
             onClick={handleNext}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+            className="btn-primary w-full sm:w-auto"
             disabled={step === 1 && !projectName.trim()}
           >
-            {step === 1 ? 'Next' : 'Finish'}
+            {step === 1 ? 'Continue →' : 'Finish Setup'}
           </button>
         </div>
       </div>
