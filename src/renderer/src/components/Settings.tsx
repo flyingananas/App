@@ -233,8 +233,8 @@ export function Settings({ settings, project, reloadSettings }: Props) {
                       await window.api.importData(text);
                       setStatusMsg('Data imported successfully. Reloading...');
                       setTimeout(() => window.location.reload(), 1500);
-                    } catch (err: any) {
-                      setStatusMsg(`Import failed: ${err.message}`);
+                    } catch (err: unknown) {
+                      setStatusMsg(`Import failed: ${(err as Error).message}`);
                     }
                   }
                 }
