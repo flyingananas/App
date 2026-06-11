@@ -25,11 +25,15 @@ export function Navigation({ activeTab, setActiveTab }: Props) {
   ];
 
   return (
-    <nav className="bg-gray-800 text-white p-2 flex space-x-2 overflow-x-auto whitespace-nowrap">
+    <nav className="bg-white border-b border-slate-200 px-6 py-3 flex space-x-2 overflow-x-auto whitespace-nowrap shadow-sm z-10 sticky top-0">
       {tabs.map(tab => (
         <button
           key={tab.id}
-          className={`px-3 py-1 rounded text-sm font-medium ${activeTab === tab.id ? 'bg-blue-600' : 'hover:bg-gray-700'}`}
+          className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+            activeTab === tab.id
+              ? 'bg-indigo-100 text-indigo-700 shadow-sm'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          }`}
           onClick={() => setActiveTab(tab.id)}
         >
           {tab.label}

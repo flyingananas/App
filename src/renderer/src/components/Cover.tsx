@@ -11,25 +11,31 @@ export function Cover({ settings, project }: Props) {
   }
 
   return (
-    <div className="p-6 h-full flex flex-col justify-center items-center">
-      <h1 className="text-4xl font-bold mb-4">{project.name || 'Prompt D Project'}</h1>
-      <p className="text-gray-500 mb-8">A Project Companion</p>
+    <div className="p-6 h-full flex flex-col justify-center items-center bg-slate-50">
+      <div className="text-center mb-10">
+        <h1 className="text-5xl font-bold tracking-tight text-slate-900 mb-3">{project.name || 'Prompt D Project'}</h1>
+        <p className="text-lg text-slate-500 font-medium tracking-wide uppercase">A Project Companion</p>
+      </div>
 
-      <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm bg-white p-6 rounded shadow border w-full max-w-md">
-        <div className="font-bold text-right text-gray-600">Date:</div>
-        <div className="font-medium">{new Date().toLocaleDateString()}</div>
+      <div className="card p-8 w-full max-w-md">
+        <div className="grid grid-cols-2 gap-x-8 gap-y-5 text-sm">
+          <div className="font-semibold text-right text-slate-500">Date</div>
+          <div className="font-medium text-slate-800">{new Date().toLocaleDateString()}</div>
 
-        <div className="font-bold text-right text-gray-600">Mode:</div>
-        <div className="font-medium uppercase">{settings.mode || 'NEW'}</div>
+          <div className="font-semibold text-right text-slate-500">Mode</div>
+          <div className="font-medium text-slate-800 uppercase tracking-wide bg-slate-100 px-2 py-0.5 rounded inline-block w-max">{settings.mode || 'NEW'}</div>
 
-        <div className="font-bold text-right text-gray-600">Version:</div>
-        <div className="font-medium">v3</div>
+          <div className="font-semibold text-right text-slate-500">Version</div>
+          <div className="font-medium text-slate-800 font-mono">v3</div>
 
-        <div className="font-bold text-right text-gray-600 mt-4">Checkpoint Threshold:</div>
-        <div className="mt-4 font-medium">{project.checkpoint_threshold || '15'}</div>
+          <div className="col-span-2 border-t border-slate-100 my-2"></div>
 
-        <div className="font-bold text-right text-gray-600">System Check Threshold:</div>
-        <div className="font-medium">{project.syc_threshold || '200'}</div>
+          <div className="font-semibold text-right text-slate-500">Checkpoint Threshold</div>
+          <div className="font-medium text-slate-800">{project.checkpoint_threshold || '15'} <span className="text-slate-400 font-normal">items</span></div>
+
+          <div className="font-semibold text-right text-slate-500">System Check Threshold</div>
+          <div className="font-medium text-slate-800">{project.syc_threshold || '200'} <span className="text-slate-400 font-normal">items</span></div>
+        </div>
       </div>
     </div>
   );

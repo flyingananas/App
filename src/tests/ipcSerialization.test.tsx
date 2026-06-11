@@ -51,8 +51,8 @@ describe('IPC Serialization and AI Conversation Flow', () => {
     const input = screen.getByPlaceholderText(/Type a message or command/i);
     fireEvent.change(input, { target: { value: 'Hello AI' } });
 
-    const submitBtn = screen.getByText('Send');
-    fireEvent.click(submitBtn);
+    const form = input.closest('form');
+    fireEvent.submit(form!);
 
     // Wait for AI call
     await waitFor(() => {

@@ -19,26 +19,36 @@ export function AppendixB() {
   ];
 
   return (
-    <div className="p-6">
-      <h2 className="text-2xl font-bold mb-4">Appendix B: Glossary</h2>
-      <table className="w-full text-left border-collapse">
-        <thead>
-          <tr className="border-b-2 border-gray-300">
-            <th className="p-2">Code</th>
-            <th className="p-2">Full Phrase</th>
-            <th className="p-2">Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          {codes.map(c => (
-            <tr key={c.code} className="border-b border-gray-200">
-              <td className="p-2 font-mono text-sm">{c.code}</td>
-              <td className="p-2 font-mono text-sm">{c.full}</td>
-              <td className="p-2">{c.desc}</td>
+    <div className="p-6 max-w-5xl mx-auto space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight text-slate-800">Appendix B: Glossary</h2>
+        <p className="text-sm text-slate-500 mt-1">Full inline glossary of all active cue words and commands.</p>
+      </div>
+
+      <div className="card">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-slate-50 border-b border-slate-200">
+              <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider w-32">Code</th>
+              <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider w-64">Full Phrase</th>
+              <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Description</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {codes.map(c => (
+              <tr key={c.code} className="hover:bg-slate-50/50 transition-colors">
+                <td className="p-4">
+                  <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded">{c.code}</span>
+                </td>
+                <td className="p-4">
+                  <span className="font-mono text-xs text-slate-600 bg-slate-100 px-2 py-1 rounded">{c.full}</span>
+                </td>
+                <td className="p-4 text-sm text-slate-700 leading-relaxed">{c.desc}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

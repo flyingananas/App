@@ -50,77 +50,95 @@ export function ContextRegister({ items, refreshItems, statusLabels }: Props) {
   };
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">[context] Register</h2>
+    <div className="p-6 max-w-5xl mx-auto space-y-6">
+      <div className="flex justify-between items-end">
         <div>
-          <label className="mr-2 font-medium">Filter by Status:</label>
-          <select className="border border-gray-300 rounded p-1" value={filter} onChange={e => setFilter(e.target.value)}>
-            <option value="All">All</option>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-800">[context] Register</h2>
+          <p className="text-sm text-slate-500 mt-1">Load-bearing people, events, and anecdotes.</p>
+        </div>
+        <div className="flex items-center space-x-3">
+          <label className="text-sm font-medium text-slate-600">Filter:</label>
+          <select className="input-field py-1.5 px-3 text-sm" value={filter} onChange={e => setFilter(e.target.value)}>
+            <option value="All">All Statuses</option>
             {statusLabels.map(lbl => <option key={lbl} value={lbl}>{lbl}</option>)}
           </select>
         </div>
       </div>
 
-      <form onSubmit={handleAdd} className="mb-6 flex space-x-2">
-        <input type="text" placeholder="New context item..." className="flex-1 border p-2 rounded" value={newContent} onChange={e => setNewContent(e.target.value)} />
-        <select className="border border-gray-300 rounded p-2" value={newStatus} onChange={e => setNewStatus(e.target.value)}>
-          <option value="">No Status</option>
-          {statusLabels.map(lbl => <option key={lbl} value={lbl}>{lbl}</option>)}
-        </select>
-        <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded">Add</button>
-      </form>
+      <div className="card p-4 bg-slate-50 border-dashed">
+        <form onSubmit={handleAdd} className="flex space-x-3">
+          <input type="text" placeholder="New context item..." className="input-field flex-1 text-sm py-2" value={newContent} onChange={e => setNewContent(e.target.value)} />
+          <select className="input-field text-sm py-2 w-40" value={newStatus} onChange={e => setNewStatus(e.target.value)}>
+            <option value="">No Status</option>
+            {statusLabels.map(lbl => <option key={lbl} value={lbl}>{lbl}</option>)}
+          </select>
+          <button type="submit" className="btn-primary text-sm px-6">Add</button>
+        </form>
+      </div>
 
-      <table className="w-full text-left border-collapse">
-        <thead>
-          <tr className="border-b-2 border-gray-300">
-            <th className="p-2">Date</th>
-            <th className="p-2">Content</th>
-            <th className="p-2">Status</th>
-            <th className="p-2">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredItems.map(item => (
-            <tr key={item.id} className="border-b border-gray-200 hover:bg-gray-50">
-              <td className="p-2 text-sm text-gray-500 whitespace-nowrap">
-                {new Date(item.created_at).toLocaleDateString()}
-              </td>
-              {editingId === item.id ? (
-                <>
-                  <td className="p-2"><input type="text" className="border w-full p-1" value={editContent} onChange={e => setEditContent(e.target.value)} /></td>
-                  <td className="p-2">
-                    <select className="border p-1" value={editStatus} onChange={e => setEditStatus(e.target.value)}>
-                      <option value="">No Status</option>
-                      {statusLabels.map(lbl => <option key={lbl} value={lbl}>{lbl}</option>)}
-                    </select>
-                  </td>
-                  <td className="p-2 space-x-2">
-                    <button onClick={() => saveEdit(item.id)} className="text-green-600">Save</button>
-                    <button onClick={() => setEditingId(null)} className="text-gray-600">Cancel</button>
-                  </td>
-                </>
-              ) : (
-                <>
-                  <td className="p-2">{item.content}</td>
-                  <td className="p-2">
-                    <span className="px-2 py-1 bg-gray-200 text-xs rounded">{item.status || 'none'}</span>
-                  </td>
-                  <td className="p-2 space-x-2">
-                    <button onClick={() => startEdit(item)} className="text-blue-600 underline text-sm">Edit</button>
-                    <button onClick={() => handleDelete(item.id)} className="text-red-600 underline text-sm">Delete</button>
-                  </td>
-                </>
-              )}
+      <div className="card">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-slate-50 border-b border-slate-200">
+              <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider w-32">Date</th>
+              <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Content</th>
+              <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider w-32">Status</th>
+              <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider w-32 text-right">Actions</th>
             </tr>
-          ))}
-          {filteredItems.length === 0 && (
-            <tr>
-              <td colSpan={4} className="p-4 text-center text-gray-500">No context items found.</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {filteredItems.map(item => (
+              <tr key={item.id} className="hover:bg-slate-50/80 transition-colors group">
+                <td className="p-4 text-sm text-slate-500 whitespace-nowrap">
+                  {new Date(item.created_at).toLocaleDateString()}
+                </td>
+                {editingId === item.id ? (
+                  <>
+                    <td className="p-4"><input type="text" className="input-field w-full py-1 text-sm" value={editContent} onChange={e => setEditContent(e.target.value)} /></td>
+                    <td className="p-4">
+                      <select className="input-field w-full py-1 text-sm" value={editStatus} onChange={e => setEditStatus(e.target.value)}>
+                        <option value="">No Status</option>
+                        {statusLabels.map(lbl => <option key={lbl} value={lbl}>{lbl}</option>)}
+                      </select>
+                    </td>
+                    <td className="p-4 text-right space-x-3 whitespace-nowrap">
+                      <button onClick={() => saveEdit(item.id)} className="text-emerald-600 font-medium text-sm hover:text-emerald-700">Save</button>
+                      <button onClick={() => setEditingId(null)} className="text-slate-500 font-medium text-sm hover:text-slate-700">Cancel</button>
+                    </td>
+                  </>
+                ) : (
+                  <>
+                    <td className="p-4 text-sm text-slate-800 leading-relaxed">{item.content}</td>
+                    <td className="p-4">
+                      {item.status ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 border border-indigo-200">
+                          {item.status}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 text-sm italic">none</span>
+                      )}
+                    </td>
+                    <td className="p-4 text-right space-x-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => startEdit(item)} className="text-indigo-600 font-medium text-sm hover:text-indigo-800">Edit</button>
+                      <button onClick={() => handleDelete(item.id)} className="text-red-500 font-medium text-sm hover:text-red-700">Delete</button>
+                    </td>
+                  </>
+                )}
+              </tr>
+            ))}
+            {filteredItems.length === 0 && (
+              <tr>
+                <td colSpan={4} className="p-12 text-center text-slate-500">
+                  <div className="flex flex-col items-center">
+                    <svg className="w-10 h-10 text-slate-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    <p>No context items found.</p>
+                  </div>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
