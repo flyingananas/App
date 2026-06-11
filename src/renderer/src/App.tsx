@@ -312,7 +312,45 @@ Return ONLY valid JSON in this exact structure, or an empty JSON array [] if not
       });
       setItems((prev) => [...prev, newItem]);
       incrementItemCount();
-      setChatMessages((prev) => [...prev, { id: Date.now(), type: 'system', content: 'Help requested: Here is a help area.' }]);
+
+      const newMsg = { id: Date.now(), type: 'chat', role: 'user', content: `Help requested: ${parsed.content}` };
+      setChatMessages((prev) => [...prev, newMsg]);
+
+      if (settings.ai_enabled === 'true') {
+        const provider = (settings.ai_provider as 'gemini' | 'claude') || 'gemini';
+        const model = settings[`${provider}_light`] || 'gemini-2.5-flash';
+        const recentItems = items.slice(-10).map(i => `[${i.type}] ${i.content}`).join('\n');
+        const contextItems = items.filter(i => i.type === 'context').map(i => i.content).join(', ');
+        let openThreadsStr = 'None';
+        try {
+          const openThreads = await window.api.getActiveThreads();
+          if (openThreads.length > 0) {
+            openThreadsStr = openThreads.map((t: any) => t.title || t.id).join(', ');
+          }
+        } catch {}
+
+        const systemPrompt = `You are Prompt D, an AI project companion. Provide helpful assistance.
+Recent logs:
+${recentItems}
+Context Register:
+${contextItems}
+Open Threads:
+${openThreadsStr}`;
+
+        // build multi-turn history
+        const convo = chatMessages.filter(m => m.type === 'chat' && (m.role === 'user' || m.role === 'assistant')).slice(-10);
+        const payload = [
+          ...convo.map(m => ({ role: m.role, content: m.content })),
+          { role: 'user', content: parsed.content }
+        ];
+
+        try {
+          const aiResponse = await window.api.generateAI(payload, { provider, model, systemPrompt });
+          setChatMessages((prev) => [...prev, { id: Date.now() + 1, type: 'chat', role: 'assistant', content: aiResponse }]);
+        } catch (err: any) {
+          setChatMessages((prev) => [...prev, { id: Date.now() + 1, type: 'system', content: `[integrity flag] AI Conversation failed (${err.message}).` }]);
+        }
+      }
     } else if (parsed.type === 'action') {
       const ok = await window.api.activateItemByText(parsed.content);
       if (ok) {
@@ -368,21 +406,25 @@ Return ONLY valid JSON in this exact structure, or an empty JSON array [] if not
 4. What rule has drifted or is applied inconsistently?` }]);
     } else if (parsed.type === 'chat') {
       // Ordinary chat message -> push to history
-      setChatMessages((prev) => [...prev, { id: Date.now(), type: 'chat', content: parsed.content }]);
+      const newMsg = { id: Date.now(), type: 'chat', role: 'user', content: parsed.content };
+      setChatMessages((prev) => [...prev, newMsg]);
 
-      // Inferred logging logic (background)
-      if (settings.ai_enabled === 'true' && settings.feat_inferred === 'true') {
-        const newItem = await window.api.insertItem({
-          type: 'thought',
-          content: parsed.content,
-          source: 'inferred',
-        });
-        setItems((prev) => [...prev, newItem]);
-        incrementItemCount();
-        setChatMessages((prev) => [...prev, { id: Date.now(), type: 'system', content: 'noted (inferred)' }]);
-        runContextAutoDetection(parsed.content);
-      } else if (settings.ai_enabled === 'true') {
-        // AI Conversation flow
+      if (settings.ai_enabled === 'true') {
+        // Inferred logging logic (runs in background without overriding conversation)
+        if (settings.feat_inferred === 'true') {
+          window.api.insertItem({
+            type: 'thought',
+            content: parsed.content,
+            source: 'inferred',
+          }).then(newItem => {
+            setItems((prev) => [...prev, newItem]);
+            incrementItemCount();
+            setChatMessages((prev) => [...prev, { id: Date.now() + 2, type: 'system', content: 'noted (inferred)' }]);
+            runContextAutoDetection(parsed.content);
+          });
+        }
+
+        // Multi-turn AI Conversation flow
         const provider = (settings.ai_provider as 'gemini' | 'claude') || 'gemini';
         const model = settings[`${provider}_light`] || 'gemini-2.5-flash';
 
@@ -397,22 +439,25 @@ Return ONLY valid JSON in this exact structure, or an empty JSON array [] if not
           }
         } catch {}
 
-        const prompt = `You are Prompt D, an AI project companion. The user said: "${parsed.content}".
-Respond naturally. Here is recent context about the project to ground your response:
+        const systemPrompt = `You are Prompt D, an AI project companion. Respond naturally. Here is recent context about the project to ground your response:
 Recent logs:
 ${recentItems}
-
 Context Register:
 ${contextItems}
-
 Open Threads:
 ${openThreadsStr}`;
 
+        const convo = chatMessages.filter(m => m.type === 'chat' && (m.role === 'user' || m.role === 'assistant')).slice(-10);
+        const payload = [
+          ...convo.map(m => ({ role: m.role, content: m.content })),
+          { role: 'user', content: parsed.content }
+        ];
+
         try {
-          const aiResponse = await window.api.generateAI(prompt, { provider, model });
-          setChatMessages((prev) => [...prev, { id: Date.now(), type: 'system', content: aiResponse }]);
+          const aiResponse = await window.api.generateAI(payload, { provider, model, systemPrompt });
+          setChatMessages((prev) => [...prev, { id: Date.now() + 1, type: 'chat', role: 'assistant', content: aiResponse }]);
         } catch (err: any) {
-          setChatMessages((prev) => [...prev, { id: Date.now(), type: 'system', content: `[integrity flag] AI Conversation failed (${err.message}).` }]);
+          setChatMessages((prev) => [...prev, { id: Date.now() + 1, type: 'system', content: `[integrity flag] AI Conversation failed (${err.message}).` }]);
         }
       }
     }
@@ -596,8 +641,25 @@ ${openThreadsStr}`;
                   );
                 }
 
+                if (msg.type === 'system') {
+                  return (
+                    <div key={msg.id} className="p-2 rounded text-sm bg-blue-100 text-blue-800 self-center max-w-lg w-full text-center">
+                      {msg.content}
+                    </div>
+                  );
+                }
+
+                if (msg.role === 'assistant') {
+                  return (
+                    <div key={msg.id} className="p-3 rounded-lg text-sm bg-white border border-gray-200 text-gray-800 self-start max-w-[85%] whitespace-pre-wrap">
+                      <strong className="block mb-1 text-xs text-blue-600 uppercase">Prompt D</strong>
+                      {msg.content}
+                    </div>
+                  );
+                }
+
                 return (
-                  <div key={msg.id} className={`p-2 rounded text-sm ${msg.type === 'system' ? 'bg-blue-100 text-blue-800' : 'bg-gray-200 text-gray-800'}`}>
+                  <div key={msg.id} className="p-3 rounded-lg text-sm bg-blue-600 text-white self-end max-w-[85%] whitespace-pre-wrap">
                     {msg.content}
                   </div>
                 );
