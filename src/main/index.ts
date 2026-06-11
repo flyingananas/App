@@ -53,7 +53,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle('ai:setKey', (_, provider, key) => secureStorage.setAIKey(provider, key));
   ipcMain.handle('ai:hasKey', (_, provider) => secureStorage.hasAIKey(provider));
-  ipcMain.handle('ai:generate', (_, prompt, options) => aiAdapter.generateContent(prompt, options));
+  ipcMain.handle('ai:generate', (_, promptOrMessages, options) => aiAdapter.generateContent(promptOrMessages, options));
 
   ipcMain.handle('db:exportData', () => api.exportData());
   ipcMain.handle('db:importData', (_, jsonData) => api.importData(jsonData));

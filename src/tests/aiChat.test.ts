@@ -14,11 +14,13 @@ vi.mock('@google/genai', () => ({
   GoogleGenAI: class {
     models = {
       generateContent: vi.fn().mockImplementation(async (args) => {
-        const prompt = args.contents;
+        const prompt = typeof args.contents === 'string' ? args.contents : JSON.stringify(args.contents);
+        const sysPrompt = args.config?.systemInstruction || '';
+
         if (prompt.includes('Analyze this message:')) {
           return { text: `[{"type":"context","content":"John Doe","explanation":"Person mentioned"}]` };
         }
-        if (prompt.includes('You are Prompt D, an AI project companion.')) {
+        if (sysPrompt.includes('You are Prompt D, an AI project companion.')) {
           return { text: 'Hello from AI' };
         }
         return { text: 'Unknown prompt' };
@@ -44,9 +46,18 @@ describe('AI Context and Conversation Logic', () => {
     }
   });
 
-  it('generates a conversation reply properly when prompted', async () => {
-    api.insertItem({ type: 'thought', content: 'Previous context' });
-    const reply = await aiAdapter.generateContent('You are Prompt D, an AI project companion. The user said: "Hello"', { provider: 'gemini', model: 'gemini-2.5-flash' });
+  it('handles multi-turn conversation arrays properly', async () => {
+    const messages: aiAdapter.Message[] = [
+      { role: 'user', content: 'Hello' },
+      { role: 'assistant', content: 'Hi there' },
+      { role: 'user', content: 'How are you?' }
+    ];
+    const reply = await aiAdapter.generateContent(messages, {
+      provider: 'gemini',
+      model: 'gemini-2.5-flash',
+      systemPrompt: 'You are Prompt D, an AI project companion.'
+    });
+    // the mock returns "Hello from AI" if it spots "Prompt D"
     expect(reply).toBe('Hello from AI');
   });
 
