@@ -40,8 +40,8 @@ ${transcript}`;
       const parsed = JSON.parse(aiResponse.replace(/```json|```/g, '').trim());
       setResults(parsed);
       setStatus('Analysis complete.');
-    } catch (err: unknown) {
-      setStatus(`Analysis failed: ${(err as Error).message}`);
+    } catch (err: any) {
+      setStatus(`Analysis failed: ${err.message}`);
     }
   };
 
